@@ -1,34 +1,60 @@
 import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
 
 component Player inherits Rectangle {
-  in property <string> filename;
+    in property <string> filename;
 
-  VerticalBox {
+    VerticalBox {
+
+        HorizontalBox {
+
+            max-height: 20px;
+            Button {
+                max-width: 20px;
+                text: "▶";
+            }
+
+            Text {
+                text: filename;
+            }
+
+            Button {
+                text: "Выбрать файл";
+            }
+        }
+
+        Slider {
+            max-width: parent.width;
+            height: 20px;
+            value: 42;
+        }
+    }
+}
+
+component BitSelector inherits Rectangle {
+
+    in-out property <int> minimum: 1;
+    in-out property <int> maximum: 8;
+    in-out property <int> value: 1;
 
     HorizontalBox {
+        Button {
+            text: "<";
+            clicked => {
+                root.value = Math.max(root.value - 1, root.minimum);
+            }
+        }
 
-      max-height: 20px;
-      Button {
-        max-width: 20px;
-text: "▶";
-      }
+        Text {
+            text: root.value + " бит";
+        }
 
-      Text {
-text: filename;
-      }
-
-      Button {
-text: "Выбрать файл";
-      }
+        Button {
+            text: ">";
+            clicked => {
+                root.value = Math.min(root.value + 1, root.maximum);
+            }
+        }
     }
-
-    Slider {
-      max-width: parent.width;
-height: 20px;
-value: 42;
-    }
-  }
-
 }
 
 export component AppWindow inherits Window {
@@ -36,62 +62,59 @@ export component AppWindow inherits Window {
   // min-width: 100px;
   // min-height: 100px;
   max-width: 1000px;
-  max-height: 1000px;
-  in-out property <int> counter: 42;
-  callback request-increase-value();
+    max-height: 1000px;
+    in-out property <int> counter: 42;
+    callback request-increase-value();
 
-  VerticalBox {
+    VerticalBox {
+        Player {
+            filename: "filename.wav";
+        }
 
-    Player {
-filename: "filename.wav";
+        HorizontalBox {
+            max-height: 20px;
+            CheckBox {
+                text: "Скрыть повторения";
+            }
+
+            BitSelector {
+                minimum: 1;
+                maximum: 8;
+                value: 1;
+            }
+
+            Button {
+                text: "Расшифровать";
+                clicked => {
+                    debug("Расшифровать");
+                }
+            }
+        }
+
+        TextEdit {
+            min-height: 100px;
+            text: "Result is here";
+        }
+
+        HorizontalBox {
+            max-height: 20px;
+            CheckBox {
+                text: "Повторять";
+            }
+
+            SpinBox {
+                minimum: 1;
+                maximum: 8;
+                value: 1;
+            }
+
+            Button {
+                text: "Зашифровать";
+            }
+        }
+
+        Player {
+            filename: "filename.wav";
+        }
     }
-
-    HorizontalBox {
-      max-height: 20px;
-      CheckBox {
-text: "Скрыть повторения";
-      }
-
-      SpinBox {
-minimum: 1;
-maximum: 8;
-value: 1;
-      }
-
-      Button {
-text: "Расшифровать";
-      clicked => {
-        debug("Расшифровать");
-      }
-      }
-    }
-
-    TextEdit {
-text: "Result is here";
-    }
-
-
-    HorizontalBox {
-      max-height: 20px;
-      CheckBox {
-text: "Повторять";
-      }
-
-      SpinBox {
-minimum: 1;
-maximum: 8;
-value: 1;
-      }
-
-      Button {
-text: "Зашифровать";
-      }
-    }
-
-    Player {
-filename: "filename.wav";
-    }
-
-  }
 }
-
