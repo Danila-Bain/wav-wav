@@ -1,23 +1,46 @@
 import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
 
+component MyButton inherits Rectangle {
+    in property <string> text: "@";
+    background: touch_area.pressed ? gray : black;
+    border-radius: 8px;
+
+    callback clicked <=> touch_area.clicked;
+
+    Text {
+        text: root.text;
+        color: white;
+    }
+
+    touch_area := TouchArea { }
+}
+
 component Player inherits Rectangle {
     in property <string> filename;
+    in-out property <float> playback_position: 0.0; // Playback position (0 to 1)
+    in-out property <bool> paused: true;
+
+    callback play_button_clicked <=> play_button.clicked;
+    callback choose_file_button_clicked <=> choose_file_button.clicked;
+    callback seek_audio(float);
 
     VerticalBox {
 
         HorizontalBox {
 
             max-height: 20px;
-            Button {
-                max-width: 20px;
-                text: "▶";
+            play_button := MyButton {
+                width: 40px;
+                height: 40px;
+                text: paused ? "⏸" : "▶";
             }
 
             Text {
                 text: filename;
             }
 
-            Button {
+            choose_file_button := MyButton {
+                width: 25%;
                 text: "Выбрать файл";
             }
         }
@@ -25,7 +48,10 @@ component Player inherits Rectangle {
         Slider {
             max-width: parent.width;
             height: 20px;
-            value: 42;
+            value <=> root.playback_position;
+            changed => {
+                seek_audio(playback_position)
+            }
         }
     }
 }
@@ -36,19 +62,30 @@ component BitSelector inherits Rectangle {
     in-out property <int> maximum: 8;
     in-out property <int> value: 1;
 
+    property <length> button-size: 30px;
+
     HorizontalBox {
-        Button {
+        alignment: center;
+
+        MyButton {
+            width: root.button-size;
+            height: root.button-size;
             text: "<";
             clicked => {
                 root.value = Math.max(root.value - 1, root.minimum);
             }
         }
 
-        Text {
-            text: root.value + " бит";
+        Rectangle {
+            Text {
+                text: root.value + " бит";
+                color: white;
+            }
         }
 
-        Button {
+        MyButton {
+            width: root.button-size;
+            height: root.button-size;
             text: ">";
             clicked => {
                 root.value = Math.min(root.value + 1, root.maximum);
@@ -57,38 +94,71 @@ component BitSelector inherits Rectangle {
     }
 }
 
+component Settings inherits Rectangle {
+
+    in property <string> check-box-text: "Повторения";
+    in property <string> button-text: "Запустить";
+
+    HorizontalBox {
+        min-height: 15px;
+
+        alignment: space-around;
+
+        Rectangle {
+            min-width: 200px;
+            width: 30%;
+            background: #0005;
+
+            CheckBox {
+                text: root.check-box-text;
+            }
+        }
+
+        BitSelector {
+            width: 30%;
+            background: #0005;
+            minimum: 1;
+            maximum: 8;
+            value: 1;
+        }
+
+        MyButton {
+            width: 30%;
+            text: root.button-text;
+            clicked => {
+                debug("Расшифровать");
+            }
+        }
+    }
+}
+
+global Color {
+    in-out property <brush> rainbow-gradient: @linear-gradient(40deg, rgba(255, 0, 0, 1) 0%, rgba(255, 154, 0, 1) 10%, rgba(208, 222, 33, 1) 20%, rgba(79, 220, 74, 1) 30%, rgba(63, 218, 216, 1) 40%, rgba(47, 201, 226, 1) 50%, rgba(28, 127, 238, 1) 60%, rgba(95, 21, 242, 1) 70%, rgba(186, 12, 248, 1) 80%, rgba(251, 7, 217, 1) 90%, rgba(255, 0, 0, 1) 100%);
+}
+
 export component AppWindow inherits Window {
 
-  // min-width: 100px;
-  // min-height: 100px;
-  max-width: 1000px;
+    callback choose_audio_file <=> input_player.choose_file_button_clicked;
+    callback play_toggle <=> input_player.play_button_clicked;
+    callback seek <=> input_player.seek_audio;
+
+    max-width: 1000px;
     max-height: 1000px;
-    in-out property <int> counter: 42;
-    callback request-increase-value();
+    min-width: 500px;
+    min-height: 500px;
+    background: Color.rainbow-gradient;
+    // in-out property <int> counter: 42;
+    // callback request-increase-value();
 
     VerticalBox {
-        Player {
+
+        input_player := Player {
             filename: "filename.wav";
         }
 
-        HorizontalBox {
-            max-height: 20px;
-            CheckBox {
-                text: "Скрыть повторения";
-            }
-
-            BitSelector {
-                minimum: 1;
-                maximum: 8;
-                value: 1;
-            }
-
-            Button {
-                text: "Расшифровать";
-                clicked => {
-                    debug("Расшифровать");
-                }
-            }
+        Settings {
+            check-box-text: "Скрыть повторения";
+            button-text: "Расшифровать";
         }
 
         TextEdit {
@@ -96,21 +166,9 @@ export component AppWindow inherits Window {
             text: "Result is here";
         }
 
-        HorizontalBox {
-            max-height: 20px;
-            CheckBox {
-                text: "Повторять";
-            }
-
-            SpinBox {
-                minimum: 1;
-                maximum: 8;
-                value: 1;
-            }
-
-            Button {
-                text: "Зашифровать";
-            }
+        Settings {
+            check-box-text: "Делать повторения";
+            button-text: "Зашифровать";
         }
 
         Player {
