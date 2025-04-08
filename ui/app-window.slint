@@ -18,9 +18,10 @@ component MyButton inherits Rectangle {
 component Player inherits Rectangle {
     in property <string> filename;
     in-out property <float> playback_position: 0.0; // Playback position (0 to 1)
-    in-out property <bool> paused: true;
+    in-out property <bool> playing: true;
 
-    callback play_button_clicked <=> play_button.clicked;
+    // callback play_button_clicked <=> play_button.clicked;
+    callback play_button_clicked() -> bool;
     callback choose_file_button_clicked <=> choose_file_button.clicked;
     callback seek_audio(float);
 
@@ -32,7 +33,10 @@ component Player inherits Rectangle {
             play_button := MyButton {
                 width: 40px;
                 height: 40px;
-                text: paused ? "⏸" : "▶";
+                text: playing ? "▶" : "||";
+                clicked => {
+                     playing = root.play_button_clicked();
+                }
             }
 
             Text {
