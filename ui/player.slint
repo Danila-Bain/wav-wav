@@ -1,0 +1,50 @@
+import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
+import {MyButton} from "./my-button.slint"; 
+
+export component Player inherits Rectangle {
+    in property <string> filename;
+    in-out property <float> playback_position: 0.0; // Playback position (0 to 1)
+    in-out property <bool> playing: true;
+
+    // callback play_button_clicked <=> play_button.clicked;
+    callback play_button_clicked() -> bool;
+    callback choose_file_button_clicked <=> choose_file_button.clicked;
+    callback seek_audio(float);
+
+    VerticalBox {
+
+        HorizontalBox {
+
+            max-height: 20px;
+            play_button := MyButton {
+                width: 40px;
+                height: 40px;
+                text: playing ? "▶" : "||";
+                clicked => {
+                    playing = root.play_button_clicked();
+                }
+            }
+
+            Text {
+                text: filename;
+            }
+
+            choose_file_button := MyButton {
+                width: 25%;
+                text: "Выбрать файл";
+            }
+        }
+
+        Slider {
+            max-width: parent.width;
+            height: 20px;
+            minimum: 0;
+            maximum: 1;
+            value <=> root.playback_position;
+            changed => {
+                seek_audio(playback_position);
+                debug("New value: ", self.value);
+            }
+        }
+    }
+}

@@ -1,0 +1,40 @@
+import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
+import {MyButton} from "./my-button.slint"; 
+
+export component BitSelector inherits Rectangle {
+
+    in-out property <int> minimum: 1;
+    in-out property <int> maximum: 8;
+    in-out property <int> value: 1;
+
+    property <length> button-size: 30px;
+
+    HorizontalBox {
+        alignment: center;
+
+        MyButton {
+            width: root.button-size;
+            height: root.button-size;
+            text: "<";
+            clicked => {
+                root.value = Math.max(root.value - 1, root.minimum);
+            }
+        }
+
+        Rectangle {
+            Text {
+                text: root.value + " бит";
+                color: white;
+            }
+        }
+
+        MyButton {
+            width: root.button-size;
+            height: root.button-size;
+            text: ">";
+            clicked => {
+                root.value = Math.min(root.value + 1, root.maximum);
+            }
+        }
+    }
+}

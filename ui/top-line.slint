@@ -1,0 +1,44 @@
+
+       export component TopLine inherits Rectangle {
+            height: 30px;
+            background: white;
+
+            HorizontalLayout {
+                alignment: space-between;
+                HorizontalLayout {
+                    padding: 5px;
+
+                    Image {
+                        source: @image-url("res/icons/dog.png");
+                        width: 30px;
+                        height: 30px;
+                    }
+
+                    Text {
+                        text: "Wav-wav!";
+                        font-size: 20px;
+                        font-family: "IrishGrover";
+                    }
+                }
+
+                HorizontalLayout {
+                    Image {
+                        source: @image-url("res/icons/close.png");
+                        width: 30px;
+                        height: 30px;
+                    }
+
+                    Image {
+                        source: @image-url("res/icons/close.png");
+                        width: 30px;
+                        height: 30px;
+                    }
+
+                    Image {
+                        source: @image-url("res/icons/close.png");
+                        width: 30px;
+                        height: 30px;
+                    }
+                }
+            }
+        }

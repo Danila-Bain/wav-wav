@@ -1,182 +1,76 @@
 import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
 
-component MyButton inherits Rectangle {
-    in property <string> text: "@";
-    background: touch_area.pressed ? gray : black;
-    border-radius: 8px;
+import "./res/fonts/Neucha-Regular.ttf";
+import "./res/fonts/RubikMoonrocks-Regular.ttf";
+import "./res/fonts/IrishGrover-Regular.ttf";
 
-    callback clicked <=> touch_area.clicked;
-
-    Text {
-        text: root.text;
-        color: white;
-    }
-
-    touch_area := TouchArea { }
-}
-
-component Player inherits Rectangle {
-    in property <string> filename;
-    in-out property <float> playback_position: 0.0; // Playback position (0 to 1)
-    in-out property <bool> playing: true;
-
-    // callback play_button_clicked <=> play_button.clicked;
-    callback play_button_clicked() -> bool;
-    callback choose_file_button_clicked <=> choose_file_button.clicked;
-    callback seek_audio(float);
-
-    VerticalBox {
-
-        HorizontalBox {
-
-            max-height: 20px;
-            play_button := MyButton {
-                width: 40px;
-                height: 40px;
-                text: playing ? "▶" : "||";
-                clicked => {
-                     playing = root.play_button_clicked();
-                }
-            }
-
-            Text {
-                text: filename;
-            }
-
-            choose_file_button := MyButton {
-                width: 25%;
-                text: "Выбрать файл";
-            }
-        }
-
-        Slider {
-            max-width: parent.width;
-            height: 20px;
-            value <=> root.playback_position;
-            changed => {
-                seek_audio(playback_position)
-            }
-        }
-    }
-}
-
-component BitSelector inherits Rectangle {
-
-    in-out property <int> minimum: 1;
-    in-out property <int> maximum: 8;
-    in-out property <int> value: 1;
-
-    property <length> button-size: 30px;
-
-    HorizontalBox {
-        alignment: center;
-
-        MyButton {
-            width: root.button-size;
-            height: root.button-size;
-            text: "<";
-            clicked => {
-                root.value = Math.max(root.value - 1, root.minimum);
-            }
-        }
-
-        Rectangle {
-            Text {
-                text: root.value + " бит";
-                color: white;
-            }
-        }
-
-        MyButton {
-            width: root.button-size;
-            height: root.button-size;
-            text: ">";
-            clicked => {
-                root.value = Math.min(root.value + 1, root.maximum);
-            }
-        }
-    }
-}
-
-component Settings inherits Rectangle {
-
-    in property <string> check-box-text: "Повторения";
-    in property <string> button-text: "Запустить";
-
-    HorizontalBox {
-        min-height: 15px;
-
-        alignment: space-around;
-
-        Rectangle {
-            min-width: 200px;
-            width: 30%;
-            background: #0005;
-
-            CheckBox {
-                text: root.check-box-text;
-            }
-        }
-
-        BitSelector {
-            width: 30%;
-            background: #0005;
-            minimum: 1;
-            maximum: 8;
-            value: 1;
-        }
-
-        MyButton {
-            width: 30%;
-            text: root.button-text;
-            clicked => {
-                debug("Расшифровать");
-            }
-        }
-    }
-}
-
-global Color {
-    in-out property <brush> rainbow-gradient: @linear-gradient(40deg, rgba(255, 0, 0, 1) 0%, rgba(255, 154, 0, 1) 10%, rgba(208, 222, 33, 1) 20%, rgba(79, 220, 74, 1) 30%, rgba(63, 218, 216, 1) 40%, rgba(47, 201, 226, 1) 50%, rgba(28, 127, 238, 1) 60%, rgba(95, 21, 242, 1) 70%, rgba(186, 12, 248, 1) 80%, rgba(251, 7, 217, 1) 90%, rgba(255, 0, 0, 1) 100%);
-}
+import { MyButton } from "./my-button.slint";
+import { Player } from "player.slint";
+import { Settings } from "settings.slint";
+import { TopLine } from "top-line.slint";
 
 export component AppWindow inherits Window {
+    default-font-family: "Neucha";
+    default-font-size: 24px;
 
     callback choose_audio_file <=> input_player.choose_file_button_clicked;
-    callback play_toggle <=> input_player.play_button_clicked;
-    callback seek <=> input_player.seek_audio;
+    callback input_play_toggle <=> input_player.play_button_clicked;
+    callback input_seek <=> input_player.seek_audio;
+    in-out property <float> input_playback_position: 0.0;
 
-    max-width: 1000px;
-    max-height: 1000px;
-    min-width: 500px;
-    min-height: 500px;
-    background: Color.rainbow-gradient;
+    max-width: 1440px;
+    max-height: 1024px;
+    min-width: 720px;
+    min-height: 512px;
+
+    Image {
+        source: @image-url("res/background.png");
+        image-fit: cover;
+        width: parent.width;
+        height: parent.height;
+    }
     // in-out property <int> counter: 42;
     // callback request-increase-value();
 
-    VerticalBox {
 
-        input_player := Player {
-            filename: "filename.wav";
+    VerticalLayout {
+        padding: 0px;
+
+        TopLine {
+            x: 0;
+            width: parent.width;
         }
 
-        Settings {
-            check-box-text: "Скрыть повторения";
-            button-text: "Расшифровать";
-        }
+        VerticalLayout {
 
-        TextEdit {
-            min-height: 100px;
-            text: "Result is here";
-        }
+            input_player := Player {
+                filename: "filename.wav";
+                playback_position <=> root.input_playback_position;
+            }
 
-        Settings {
-            check-box-text: "Делать повторения";
-            button-text: "Зашифровать";
-        }
+            Settings {
+                check-box-text: "Скрыть повторения";
+                button-text: "Расшифровать";
+            }
 
-        Player {
-            filename: "filename.wav";
+            Rectangle {
+
+                TextInput {
+                    min-height: 100px;
+                    text: "Result is here";
+                }
+
+                background: black.transparentize(0.5);
+            }
+
+            Settings {
+                check-box-text: "Делать повторения";
+                button-text: "Зашифровать";
+            }
+
+            Player {
+                filename: "filename.wav";
+            }
         }
     }
 }

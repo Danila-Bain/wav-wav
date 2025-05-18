@@ -1,0 +1,41 @@
+import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
+import {MyButton} from "./my-button.slint"; 
+import {BitSelector} from "./bit-selector.slint"; 
+
+export component Settings inherits Rectangle {
+
+    in property <string> check-box-text: "Повторения";
+    in property <string> button-text: "Запустить";
+
+    HorizontalBox {
+        min-height: 15px;
+
+        alignment: space-around;
+
+        Rectangle {
+            min-width: 200px;
+            width: 30%;
+            background: #0005;
+
+            CheckBox {
+                text: root.check-box-text;
+            }
+        }
+
+        BitSelector {
+            width: 30%;
+            background: #0005;
+            minimum: 1;
+            maximum: 8;
+            value: 1;
+        }
+
+        MyButton {
+            width: 30%;
+            text: root.button-text;
+            clicked => {
+                debug("Расшифровать");
+            }
+        }
+    }
+}
