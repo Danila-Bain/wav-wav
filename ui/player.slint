@@ -1,25 +1,47 @@
 import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
 import {MyButton} from "./my-button.slint"; 
 
+import "./res/fonts/Neucha-Regular.ttf";
+import "./res/fonts/RubikMoonrocks-Regular.ttf";
+import "./res/fonts/IrishGrover-Regular.ttf";
+
+
 export component Player inherits Rectangle {
-    in property <string> filename;
-    in-out property <float> playback_position: 0.0; // Playback position (0 to 1)
+    in-out property <string> filename;
+    in-out property <float> position: 0.0; // Playback position (0 to 1)
+    in-out property <float> duration: 123.3; // Playback position in seconds;
+
     in-out property <bool> playing: true;
 
     // callback play_button_clicked <=> play_button.clicked;
     callback play_button_clicked() -> bool;
-    callback choose_file_button_clicked <=> choose_file_button.clicked;
+    // callback choose_file_button_clicked <=> choose_file_button.clicked;
+    callback choose_file_button_clicked() -> {filename: string, duration: float};
     callback seek_audio(float);
+
+    background: black.transparentize(30%);
+    border-radius: 10pt;
 
     VerticalBox {
 
         HorizontalBox {
 
-            max-height: 20px;
+            spacing: 20px;
+
+            // max-height: 20px;
             play_button := MyButton {
+                text-y: -self.font-size * 35%;
                 width: 40px;
                 height: 40px;
-                text: playing ? "▶" : "||";
+                text: playing ? "⏸" : "⏵";
+                font-size: 60px;
+                // border-color: white;
+                // border-width: 2px;
+
+                // background: white;
+                background: self.pressed ? gray : white;
+                text-color: black;
+
                 clicked => {
                     playing = root.play_button_clicked();
                 }
@@ -27,23 +49,101 @@ export component Player inherits Rectangle {
 
             Text {
                 text: filename;
+                color: white;
+                vertical-alignment: TextVerticalAlignment.center;
             }
 
             choose_file_button := MyButton {
                 width: 25%;
                 text: "Выбрать файл";
+                text-color: black;
+                background: self.pressed ? gray : white;
+                out property <{filename: string, duration: float}> new;
+
+                clicked => {
+                    new = root.choose_file_button_clicked();
+                    filename = new.filename == "" ? filename : new.filename;
+                    duration = new.filename == "" ? duration : new.duration + 0.001; // avoid division by zero
+
+                    root.playing = root.playing ? root.play_button_clicked() : root.playing;
+                }
             }
         }
 
-        Slider {
-            max-width: parent.width;
-            height: 20px;
-            minimum: 0;
-            maximum: 1;
-            value <=> root.playback_position;
-            changed => {
-                seek_audio(playback_position);
-                debug("New value: ", self.value);
+        // Slider {
+        //     max-width: parent.width;
+        //     height: 20px;
+        //     minimum: 0;
+        //     maximum: 1;
+        //     value <=> root.playback_position;
+        //     changed => {
+        //         seek_audio(playback_position);
+        //         debug("New value: ", self.value);
+        //     }
+        // }
+
+        HorizontalLayout {
+
+            spacing: 10px;
+
+            Text {
+                text: "\{(position / 60.).floor()}:\{(position.mod(60.) / 10.).floor()}\{position.mod(10.).floor()}";
+                color: white;
+                font-size: 20px;
+                vertical-alignment: TextVerticalAlignment.center;
+            }
+
+            Rectangle {
+                // width: 100%;
+                height: 40px;
+                // background: white.transparentize(70%);
+
+                Rectangle {
+                    height: 5px;
+                    width: 95%;
+                    y: (parent.height - self.height) * 0.5;
+                    background: white;
+                }
+
+                // Text {
+                //     text: "@";
+                //     x: root.playback_position * (parent.width - 20px);
+                //     color: white;
+                //     font-family: "RubicMoonrocks";
+                // }
+
+                Rectangle {
+                    width: 20px;
+                    height: self.width;
+                    x: 50% * 5% * parent.width + 95% * root.position / root.duration * (parent.width) - self.width * 50%;
+                    background: white;
+                    border-radius: 5px;
+                }
+
+                TouchArea {
+                    clicked => {
+                        self.moved();
+                    }
+
+                    moved => {
+                        root.position = root.duration * clamp((self.mouse-x - 50% * 5% * self.width) / (95% * self.width), 0, 1);
+                        seek_audio(root.position);
+                        debug("MySlider moved: ", root.position);
+                    }
+
+            // pointer-event(ptrevent) => {
+            //   debug(ptrevent);
+            //   // debug("MySlider: ", self.mouse-x/self.width);
+            //   root.playback_position = ptrevent.kind == PointerEventKind.up ? (self.mouse-x/self.width) : root.playback_position;
+            // }
+                }
+            }
+
+            Text {
+                text: "\{(duration / 60.).floor()}:\{(duration.mod(60.) / 10.).floor()}\{duration.mod(10.).floor()}";
+                color: white;
+                font-size: 20px;
+                vertical-alignment: TextVerticalAlignment.center;
             }
         }
     }

@@ -1,13 +1,20 @@
+import { GroupBox , VerticalBox, CheckBox } from "std-widgets.slint";
+
 export component MyButton inherits Rectangle {
 
-    in property <string> text: "@";
-    background: touch_area.pressed ? gray : black;
+    in property text <=> t.text;
+    in property font-size <=> t.font-size;
+    in property font-family <=> t.font-family;
+    in property text-color <=> t.color;
+    in property text-y <=> t.y;
+
+    out property pressed <=> touch_area.pressed;
+
+    background: pressed ? gray : black;
     border-radius: 8px;
 
     callback clicked <=> touch_area.clicked;
-
-    Text {
-        text: root.text;
+    t := Text {
         color: white;
     }
 

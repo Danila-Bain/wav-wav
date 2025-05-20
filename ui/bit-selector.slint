@@ -9,13 +9,19 @@ export component BitSelector inherits Rectangle {
 
     property <length> button-size: 30px;
 
+    border-radius: 8px;
+    background: black;
+
     HorizontalBox {
-        alignment: center;
+        // alignment: center;
 
         MyButton {
             width: root.button-size;
             height: root.button-size;
             text: "<";
+            text-color: black;
+            background: self.pressed ? gray : white;
+
             clicked => {
                 root.value = Math.max(root.value - 1, root.minimum);
             }
@@ -32,6 +38,8 @@ export component BitSelector inherits Rectangle {
             width: root.button-size;
             height: root.button-size;
             text: ">";
+            text-color: black;
+            background: self.pressed ? gray : white;
             clicked => {
                 root.value = Math.min(root.value + 1, root.maximum);
             }

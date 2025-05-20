@@ -1,44 +1,53 @@
+import { MyButton } from "my-button.slint";
 
-       export component TopLine inherits Rectangle {
-            height: 30px;
-            background: white;
+export component TopLine inherits Rectangle {
+    height: 30px;
+    background: white;
 
-            HorizontalLayout {
-                alignment: space-between;
-                HorizontalLayout {
-                    padding: 5px;
+    HorizontalLayout {
+        alignment: space-between;
+        HorizontalLayout {
+            padding: 5px;
 
-                    Image {
-                        source: @image-url("res/icons/dog.png");
-                        width: 30px;
-                        height: 30px;
-                    }
+            Image {
+                source: @image-url("res/icons/dog.png");
+                width: parent.height - 7px;
+                height: parent.height - 7px;
+            }
 
-                    Text {
-                        text: "Wav-wav!";
-                        font-size: 20px;
-                        font-family: "IrishGrover";
-                    }
-                }
-
-                HorizontalLayout {
-                    Image {
-                        source: @image-url("res/icons/close.png");
-                        width: 30px;
-                        height: 30px;
-                    }
-
-                    Image {
-                        source: @image-url("res/icons/close.png");
-                        width: 30px;
-                        height: 30px;
-                    }
-
-                    Image {
-                        source: @image-url("res/icons/close.png");
-                        width: 30px;
-                        height: 30px;
-                    }
-                }
+            Text {
+                text: "Wav-wav!";
+                font-size: 20px;
+                font-family: "IrishGrover";
             }
         }
+
+        HorizontalLayout {
+            padding: 2px;
+            spacing: 2px;
+            MyButton {
+                width: 26px;
+                height: 26px;
+                text: "_";
+                font-size: 15px;
+                font-family: "IrishGrover";
+            }
+
+            MyButton {
+                width: 26px;
+                height: 26px;
+                text: "llll";
+                font-size: 20px;
+                font-family: "IrishGrover";
+            }
+
+            MyButton {
+                width: 26px;
+                height: 26px;
+                text: "X";
+                font-size: 20px;
+                font-family: "IrishGrover";
+            }
+        }
+    }
+}

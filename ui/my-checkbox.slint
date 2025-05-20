@@ -1,0 +1,39 @@
+import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
+import {MyButton} from "./my-button.slint"; 
+
+export component MyCheckBox inherits Rectangle {
+
+    in-out property <bool> checked: false;
+    in-out property text <=> t.text;
+
+    border-radius: 8px;
+    background: black;
+
+    HorizontalBox {
+        alignment: center;
+
+        MyButton {
+            width: 30px;
+            height: 30px;
+            text: root.checked ? "x" : " ";
+            text-color: black;
+            background: touch-area.pressed ? gray : white;
+
+            // clicked => {
+            //     root.checked = !root.checked;
+            // }
+        }
+
+        Rectangle {
+            t := Text {
+                color: white;
+            }
+        }
+    }
+
+    touch-area:= TouchArea {
+        clicked => {
+            root.checked = !root.checked;
+        }
+    }
+}

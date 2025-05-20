@@ -1,6 +1,7 @@
 import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
 import {MyButton} from "./my-button.slint"; 
 import {BitSelector} from "./bit-selector.slint"; 
+import {MyCheckBox} from "./my-checkbox.slint";
 
 export component Settings inherits Rectangle {
 
@@ -17,14 +18,14 @@ export component Settings inherits Rectangle {
             width: 30%;
             background: #0005;
 
-            CheckBox {
+            MyCheckBox {
                 text: root.check-box-text;
             }
         }
 
         BitSelector {
             width: 30%;
-            background: #0005;
+            // background: #0005;
             minimum: 1;
             maximum: 8;
             value: 1;

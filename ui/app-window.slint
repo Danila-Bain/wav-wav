@@ -43,28 +43,31 @@ export component AppWindow inherits Window {
 
         VerticalLayout {
 
+            padding: 10px;
             input_player := Player {
                 filename: "filename.wav";
-                playback_position <=> root.input_playback_position;
+                position <=> root.input_playback_position;
             }
 
             Settings {
-                check-box-text: "Скрыть повторения";
+                check-box-text: "Скрыть повторы";
                 button-text: "Расшифровать";
             }
 
             Rectangle {
+                // background: black.transparentize(0.5);
 
-                TextInput {
+                TouchArea {
+                  TextEdit {
                     min-height: 100px;
                     text: "Result is here";
+                  }
                 }
 
-                background: black.transparentize(0.5);
             }
 
             Settings {
-                check-box-text: "Делать повторения";
+                check-box-text: "Делать повторы";
                 button-text: "Зашифровать";
             }
 
