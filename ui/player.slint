@@ -28,36 +28,59 @@ export component Player inherits Rectangle {
 
             spacing: 20px;
 
-            // max-height: 20px;
-            play_button := MyButton {
-                text-y: -self.font-size * 35%;
+            play_button := Rectangle {
+
+                out property pressed <=> play_button_touch.pressed;
                 width: 40px;
                 height: 40px;
                 border-radius: 20px;
-                text: playing ? "⏸" : "⏵";
-                font-size: 60px;
-                // border-color: white;
-                // border-width: 2px;
+                background: pressed ? gray : white;
 
-                // background: white;
-                background: self.pressed ? gray : white;
-                text-color: black;
+                callback clicked <=> play_button_touch.clicked;
 
-                clicked => {
-                    playing = root.play_button_clicked();
+                play_button_touch := TouchArea {
+                    clicked => {
+                        playing = root.play_button_clicked();
+                    }
+                }
+
+                Image {
+                    source: playing ? @image-url("res/icons/pause.svg") : @image-url("res/icons/play.svg");
                 }
             }
 
+            // max-height: 20px;
+            // play_button := MyButton {
+            //     text-y: -self.font-size * 35%;
+            //     width: 40px;
+            //     height: 40px;
+            //     border-radius: 20px;
+            //     text: playing ? "⏸" : "⏵";
+            //     font-size: 60px;
+            //     // border-color: white;
+            //     // border-width: 2px;
+            //
+            //     // background: white;
+            //     background: self.pressed ? gray : white;
+            //     text-color: black;
+            //
+            //     clicked => {
+            //         playing = root.play_button_clicked();
+            //     }
+            // }
+
             Text {
+                font-family: "Neucha";
                 text: filename;
                 color: white;
                 vertical-alignment: TextVerticalAlignment.center;
             }
 
             choose_file_button := MyButton {
-                width: 25%;
+                width: 33%;
                 text: "Выбрать файл";
                 text-color: black;
+                font-family: "RubikMoonrocks";
                 background: self.pressed ? gray : white;
                 out property <{filename: string, duration: float}> new;
 

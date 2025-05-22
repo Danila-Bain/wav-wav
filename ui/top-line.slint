@@ -1,52 +1,89 @@
 import { MyButton } from "my-button.slint";
 
 export component TopLine inherits Rectangle {
-    height: 30px;
-    background: white;
+    background: white.transparentize(30%);
+
+    in property <length> button-size: 23px;
+    height: button-size + 6px;
 
     HorizontalLayout {
         alignment: space-between;
+        padding: 3px;
+
         HorizontalLayout {
-            padding: 5px;
 
             Image {
                 source: @image-url("res/icons/dog.png");
-                width: parent.height - 7px;
-                height: parent.height - 7px;
+                width: parent.height;
+                height: parent.height;
             }
 
             Text {
                 text: "Wav-wav!";
-                font-size: 20px;
+                font-size: button-size*90%;
                 font-family: "IrishGrover";
             }
         }
 
         HorizontalLayout {
-            padding: 2px;
-            spacing: 2px;
-            MyButton {
-                width: 26px;
-                height: 26px;
-                text: "_";
-                font-size: 15px;
-                font-family: "IrishGrover";
+            padding: 0px;
+            spacing: 3px;
+
+            minimize-button := Rectangle {
+
+                out property pressed <=> minimize-button-touch.pressed;
+                width: button-size;
+                height: button-size;
+                border-radius: 15% * button-size;
+                background: (pressed ? gray : black).transparentize(70%);
+                // callback clicked <=> play_button_touch.clicked;
+                minimize-button_touch := TouchArea {
+                    // clicked => { playing = root.play_button_clicked(); }
+                }
+
+                Image {
+                    height: button-size * 90%;
+                    width: button-size * 90%;
+                    source: @image-url("res/icons/hide.svg");
+                }
             }
 
-            MyButton {
-                width: 26px;
-                height: 26px;
-                text: "llll";
-                font-size: 20px;
-                font-family: "IrishGrover";
+            window-button := Rectangle {
+
+                out property pressed <=> window-button-touch.pressed;
+                width: button-size;
+                height: button-size;
+                border-radius: 15% * button-size;
+                background: (pressed ? gray : black).transparentize(70%);
+                // callback clicked <=> play_button_touch.clicked;
+                window-button_touch := TouchArea {
+                    // clicked => { playing = root.play_button_clicked(); }
+                }
+
+                Image {
+                    height: button-size * 90%;
+                    width: button-size * 90%;
+                    source: @image-url("res/icons/fullscreen.svg");
+                }
             }
 
-            MyButton {
-                width: 26px;
-                height: 26px;
-                text: "X";
-                font-size: 20px;
-                font-family: "IrishGrover";
+            close-button := Rectangle {
+
+                out property pressed <=> close-button-touch.pressed;
+                width: button-size;
+                height: button-size;
+                border-radius: 15% * button-size;
+                background: (pressed ? gray : black).transparentize(70%);
+                // callback clicked <=> play_button_touch.clicked;
+                close-button-touch := TouchArea {
+                    // clicked => { playing = root.play_button_clicked(); }
+                }
+
+                Image {
+                    height: button-size * 90%;
+                    width: button-size * 90%;
+                    source: @image-url("res/icons/close.svg");
+                }
             }
         }
     }

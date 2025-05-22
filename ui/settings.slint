@@ -8,10 +8,12 @@ export component Settings inherits Rectangle {
     in property <string> check-box-text: "Повторения";
     in property <string> button-text: "Запустить";
 
-    HorizontalBox {
+    HorizontalLayout {
+        padding: 0px;
+        
         min-height: 15px;
 
-        alignment: space-around;
+        alignment: space-between;
 
         Rectangle {
             min-width: 200px;
