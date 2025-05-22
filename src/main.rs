@@ -26,30 +26,19 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ui.on_choose_audio_file({
         let sink = Arc::clone(&sink);
         move || -> (f32, slint::SharedString) {
-            let Some(path) = FileDialog::new().pick_file() else {
-                return (0., "".into());
-            };
-            let Ok(file) = File::open(&path) else {
-                return (0., "".into());
-            };
-            let Ok(source) = Decoder::new(BufReader::new(file)) else {
-                return (0., "".into());
-            };
-
-            let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
-
-            if let Ok(sink) = sink.lock() {
+            if let Some(path) = FileDialog::new().pick_file()
+                && let Ok(file) = File::open(&path)
+                && let Ok(source) = Decoder::new(BufReader::new(file))
+                && let Ok(sink) = sink.lock()
+                && let Some(filename) = path.file_name()
+            {
+                let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
                 sink.append(source);
+                return (duration, filename.to_str().unwrap_or("<Filename Error>").into());
             } else {
-                return (duration, "".into());
-            }
+                return (0., "".into());
+            };
 
-            if let Some(filename) = path.file_name() {
-                return (duration, filename.to_str().unwrap_or("").into());
-            } else {
-                return (duration, "".into());
-            }
-            // return path.file_name().to_str().unwrap_or("").into();
         }
     });
 
@@ -90,7 +79,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         process::exit(0);
     });
 
-    ui.on_window({ // doesn't work in hyprland
+    ui.on_window({
+        // doesn't work in hyprland
         let weak_ui = ui.as_weak();
         move || {
             let _ = weak_ui.upgrade_in_event_loop(move |ui| {
@@ -100,7 +90,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    ui.on_minimize({ // doesn't work in hyprland
+    ui.on_minimize({
+        // doesn't work in hyprland
         let weak_ui = ui.as_weak();
         move || {
             let _ = weak_ui.upgrade_in_event_loop(move |ui| ui.window().set_minimized(true));

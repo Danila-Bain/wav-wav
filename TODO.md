@@ -1,4 +1,4 @@
-[ ] Write to text field from rust (make decode button write "message" to text field)
+[x] Write to text field from rust (make decode button write "message" to text field)
 [ ] Convert wav file to bytes
 [ ] Convert wav bytes to file
 [ ] Encode text to wav bytes
