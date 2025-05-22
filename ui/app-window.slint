@@ -24,6 +24,10 @@ export component AppWindow inherits Window {
     callback decode() -> string;
     // callback encode <=> encode-settings.button-clicked;
 
+    callback minimize <=> top-line.minimize;
+    callback window <=> top-line.window;
+    callback close <=> top-line.close;
+
     max-width: 1440px;
     max-height: 1024px;
     min-width: 720px;
@@ -43,7 +47,7 @@ export component AppWindow inherits Window {
         padding: 0px;
         spacing: 10px;
 
-        TopLine {
+        top-line := TopLine {
             x: 0;
             width: parent.width;
         }

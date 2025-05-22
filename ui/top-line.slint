@@ -6,6 +6,10 @@ export component TopLine inherits Rectangle {
     in property <length> button-size: 23px;
     height: button-size + 6px;
 
+    callback close <=> close-button-touch.clicked;
+    callback minimize <=> minimize-button-touch.clicked;
+    callback window <=> window-button-touch.clicked;
+
     HorizontalLayout {
         alignment: space-between;
         padding: 3px;

@@ -3,9 +3,9 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source, decoder::Lo
 use std::error::Error;
 use std::fs::File;
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
 use std::{io::BufReader, path::PathBuf};
+use std::{process, thread};
 
 slint::include_modules!();
 
@@ -84,8 +84,27 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    ui.on_decode(move || -> slint::SharedString {
-        "Secret message revealed".into()
+    ui.on_decode(move || -> slint::SharedString { "Secret message revealed".into() });
+
+    ui.on_close(move || {
+        process::exit(0);
+    });
+
+    ui.on_window({ // doesn't work in hyprland
+        let weak_ui = ui.as_weak();
+        move || {
+            let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                let is_maximized = ui.window().is_maximized();
+                ui.window().set_maximized(!is_maximized);
+            });
+        }
+    });
+
+    ui.on_minimize({ // doesn't work in hyprland
+        let weak_ui = ui.as_weak();
+        move || {
+            let _ = weak_ui.upgrade_in_event_loop(move |ui| ui.window().set_minimized(true));
+        }
     });
 
     thread::spawn({
