@@ -20,6 +20,7 @@ export component Settings inherits Rectangle {
 
             MyCheckBox {
                 text: root.check-box-text;
+                background: black.transparentize(30%);
             }
         }
 
@@ -29,11 +30,13 @@ export component Settings inherits Rectangle {
             minimum: 1;
             maximum: 8;
             value: 1;
+            background: black.transparentize(30%);
         }
 
         MyButton {
             width: 30%;
             text: root.button-text;
+            background: (self.pressed ? gray : black).transparentize(30%);
             clicked => {
                 debug("Расшифровать");
             }

@@ -7,7 +7,6 @@ export component MyButton inherits Rectangle {
     in property font-family <=> t.font-family;
     in property text-color <=> t.color;
     in property text-y <=> t.y;
-
     out property pressed <=> touch_area.pressed;
 
     background: pressed ? gray : black;
