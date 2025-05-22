@@ -84,6 +84,10 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
+    ui.on_decode(move || -> slint::SharedString {
+        "Secret message revealed".into()
+    });
+
     thread::spawn({
         let weak_ui = ui.as_weak();
         let sink = Arc::clone(&sink);

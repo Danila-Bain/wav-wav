@@ -5,6 +5,7 @@ import {MyCheckBox} from "./my-checkbox.slint";
 
 export component Settings inherits Rectangle {
 
+    callback button-clicked <=> button.clicked;
     in property <string> check-box-text: "Повторения";
     in property <string> button-text: "Запустить";
 
@@ -15,7 +16,7 @@ export component Settings inherits Rectangle {
 
         alignment: space-between;
 
-        Rectangle {
+        check-box := Rectangle {
             min-width: 200px;
             width: 30%;
             background: #0005;
@@ -26,7 +27,7 @@ export component Settings inherits Rectangle {
             }
         }
 
-        BitSelector {
+        bit-selector := BitSelector {
             width: 30%;
             // background: #0005;
             minimum: 1;
@@ -35,7 +36,7 @@ export component Settings inherits Rectangle {
             background: black.transparentize(30%);
         }
 
-        MyButton {
+        button := MyButton {
             width: 30%;
             text: root.button-text;
             background: (self.pressed ? gray : black).transparentize(30%);
