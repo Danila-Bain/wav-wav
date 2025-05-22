@@ -55,14 +55,17 @@ export component AppWindow inherits Window {
             }
 
             Rectangle {
-                // background: black.transparentize(0.5);
-
-                TouchArea {
-                  TextEdit {
-                    min-height: 100px;
-                    text: "Result is here";
-                  }
+                background: black.transparentize(30%);
+                border-radius: 8px;
+                // TouchArea {
+                  TextInput {
+                    width: 95%;
+                    height: 95%;
+                    color: white;
+                    text: "Тут будет сообщение";
+                    wrap: TextWrap.word-wrap;
                 }
+                // }
 
             }
 
