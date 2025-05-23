@@ -21,7 +21,7 @@ impl Player {
     fn new(stream_handle: &OutputStreamHandle) -> Self {
         let sink = Sink::try_new(&stream_handle).expect("Failed to create sink");
         let data = Vec::new();
-        Player {sink, data}
+        Player { sink, data }
     }
 }
 
@@ -36,7 +36,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let input_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
     let output_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
-
 
     ui.on_choose_audio_file({
         let input_player = Arc::clone(&input_player);
@@ -61,6 +60,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
+
     ui.on_input_play_toggle({
         let input_player = Arc::clone(&input_player);
         move || -> bool {
@@ -82,11 +82,46 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
+
+    ui.on_output_play_toggle({
+        let output_player = Arc::clone(&output_player);
+        move || -> bool {
+            if let Ok(output_player) = output_player.lock() {
+                let is_paused = output_player.sink.is_paused();
+                match is_paused {
+                    true => {
+                        output_player.sink.play();
+                        return true;
+                    }
+                    false => {
+                        output_player.sink.pause();
+                        return false;
+                    }
+                }
+            } else {
+                return false;
+            }
+        }
+    });
+
     ui.on_input_seek({
         let input_player = Arc::clone(&input_player);
         move |new_pos: f32| {
             if let Ok(input_player) = input_player.lock() {
-                input_player.sink.try_seek(Duration::from_secs_f32(new_pos))
+                input_player
+                    .sink
+                    .try_seek(Duration::from_secs_f32(new_pos))
+                    .expect("Seek failed");
+            }
+        }
+    });
+    ui.on_output_seek({
+        let output_player = Arc::clone(&output_player);
+        move |new_pos: f32| {
+            if let Ok(output_player) = output_player.lock() {
+                output_player
+                    .sink
+                    .try_seek(Duration::from_secs_f32(new_pos))
                     .expect("Seek failed");
             }
         }
@@ -140,7 +175,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             };
 
             let output_audio: Vec<i16> = input_player.data.clone(); // actually we want to modify output
-                                                              // audio
 
             let mut wav_writer = hound::WavWriter::create(
                 "tmp.wav",
@@ -150,11 +184,20 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                     bits_per_sample: 16,
                     sample_format: hound::SampleFormat::Int,
                 },
-            ).unwrap();
+            )
+            .unwrap();
             for sample in output_audio.iter() {
                 wav_writer.write_sample(*sample).unwrap();
             }
             wav_writer.finalize().unwrap();
+
+            if let Ok(file) = File::open("tmp.wav")
+                && let Ok(source) = Decoder::new(BufReader::new(file))
+                && let Ok(output_player) = output_player.lock()
+            {
+                let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
+                output_player.sink.append(source);
+            }
         }
     });
 
@@ -184,14 +227,18 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     thread::spawn({
         let weak_ui = ui.as_weak();
         let input_player = Arc::clone(&input_player);
+        let output_player = Arc::clone(&output_player);
         move || {
             loop {
                 thread::sleep(Duration::from_millis(100));
-                // println!("pos : {pos}, sink pos: {:?}", sink.get_pos());
                 let input_player = Arc::clone(&input_player);
+                let output_player = Arc::clone(&output_player);
                 let _ = weak_ui.upgrade_in_event_loop(move |ui| {
                     if let Ok(input_player) = input_player.lock() {
-                        ui.set_input_playback_position(input_player.sink.get_pos().as_secs_f32())
+                        ui.set_input_playback_position(input_player.sink.get_pos().as_secs_f32());
+                    }
+                    if let Ok(output_player) = output_player.lock() {
+                        ui.set_output_playback_position(output_player.sink.get_pos().as_secs_f32());
                     }
                 });
             }

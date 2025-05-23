@@ -15,8 +15,14 @@ export component AppWindow inherits Window {
     default-font-size: 24px;
 
     callback choose_audio_file <=> input_player.choose_file_button_clicked;
+    callback save_audio_file <=> output_player.choose_file_button_clicked;
+
     callback input_play_toggle <=> input_player.play_button_clicked;
+    callback output_play_toggle <=> output_player.play_button_clicked;
+
     callback input_seek <=> input_player.seek_audio;
+    callback output_seek <=> output_player.seek_audio;
+
     in-out property <float> input_playback_position: 0.0;
     in-out property <float> output_playback_position: 0.0;
 
@@ -69,7 +75,6 @@ export component AppWindow inherits Window {
                 }
             }
 
-            ScrollView {
                 // height: 200px;
                 Rectangle {
                     background: black.transparentize(30%);
@@ -87,7 +92,6 @@ export component AppWindow inherits Window {
                 // }
 
             }
-            }
 
             encode-settings := Settings {
                 check-box-text: "повторы";
@@ -95,6 +99,8 @@ export component AppWindow inherits Window {
 
                 button-clicked => {
                     root.encode(self.bits, message-text);
+                    output-player.filename = "< Unsaved audio >";
+                    output-player.duration = input-player.duration;
                 }
             }
 
