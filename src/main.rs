@@ -186,8 +186,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 message_bytes.push(new_byte);
             }
 
-            println!("{}", message_bytes.len());
-
             message_bytes.truncate(100);
 
             String::from_utf8_lossy(&message_bytes).into_owned().into()
@@ -256,8 +254,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             {
                 let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
                 output_player.sink.append(source);
-            } else {
-                println!("Could not!")
             }
         }
     });

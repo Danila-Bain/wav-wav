@@ -146,7 +146,7 @@ export component Player inherits Rectangle {
                     moved => {
                         root.position = root.duration * clamp((self.mouse-x - 50% * 5% * self.width) / (95% * self.width), 0, 1);
                         seek_audio(root.position);
-                        debug("MySlider moved: ", root.position);
+                        // debug("MySlider moved: ", root.position);
                     }
 
             // pointer-event(ptrevent) => {
