@@ -40,7 +40,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ui.on_choose_audio_file({
         let input_player = Arc::clone(&input_player);
         move || -> (f32, slint::SharedString) {
-            if let Some(path) = FileDialog::new().pick_file()
+            if let Some(path) = FileDialog::new()
+                .add_filter("wav files", &["wav"])
+                .pick_file()
                 && let Ok(file) = File::open(&path)
                 && let Ok(mut wav_reader) = hound::WavReader::open(&path)
                 && let Ok(source) = Decoder::new(BufReader::new(file))
@@ -60,6 +62,37 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
+    ui.on_save_audio_file({
+        let output_player = Arc::clone(&output_player);
+        move || -> (f32, slint::SharedString) {
+            if let Some(path) = FileDialog::new().save_file()
+                && let Ok(file) = File::create(&path)
+                && let Ok(mut wav_writer) = hound::WavWriter::new(
+                    file,
+                    hound::WavSpec {
+                        channels: 2,
+                        sample_rate: 48000,
+                        bits_per_sample: 16,
+                        sample_format: hound::SampleFormat::Int,
+                    },
+                )
+                && let Ok(output_player) = output_player.lock()
+                && let Some(filename) = path.file_name()
+            {
+                for sample in output_player.data.iter() {
+                    wav_writer.write_sample(*sample).unwrap();
+                }
+                wav_writer.finalize().unwrap();
+
+                return (
+                    10.,
+                    filename.to_str().unwrap_or("<Filename Error>").into(),
+                );
+            } else {
+                return (0., "< Error saving file >".into());
+            };
+        }
+    });
 
     ui.on_input_play_toggle({
         let input_player = Arc::clone(&input_player);
@@ -81,7 +114,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             }
         }
     });
-
 
     ui.on_output_play_toggle({
         let output_player = Arc::clone(&output_player);
@@ -173,30 +205,62 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             let Ok(input_player) = input_player.lock() else {
                 return;
             };
+            let Ok(mut output_player) = output_player.lock() else {
+                return;
+            };
 
-            let output_audio: Vec<i16> = input_player.data.clone(); // actually we want to modify output
+            output_player.data = input_player.data.clone(); // actually we want to modify output
+            //
+            let bit_iterator = BitIterator {
+                bits: 8,
+                iter: message.as_bytes().iter().copied(),
+                curr_bit: 8,
+                curr_item: 0,
+            };
 
-            let mut wav_writer = hound::WavWriter::create(
-                "tmp.wav",
+            let mut bit_iterator = bit_iterator.cycle();
+
+            'outer: for sample in output_player.data.iter_mut() {
+                for i in 0..bits {
+                    let Some(bit) = bit_iterator.next() else {
+                        break 'outer;
+                    };
+                    if bit {
+                        *sample |= 1 << i;
+                    } else {
+                        *sample &= !(1 << i);
+                    }
+                }
+            }
+
+            let Ok(file) = tempfile::NamedTempFile::new() else {
+                return;
+            };
+
+            let Ok(mut wav_writer) = hound::WavWriter::new(
+                file.as_file(),
                 hound::WavSpec {
                     channels: 2,
                     sample_rate: 48000,
                     bits_per_sample: 16,
                     sample_format: hound::SampleFormat::Int,
                 },
-            )
-            .unwrap();
-            for sample in output_audio.iter() {
+            ) else {
+                return;
+            };
+
+            for sample in output_player.data.iter() {
                 wav_writer.write_sample(*sample).unwrap();
             }
             wav_writer.finalize().unwrap();
 
-            if let Ok(file) = File::open("tmp.wav")
-                && let Ok(source) = Decoder::new(BufReader::new(file))
-                && let Ok(output_player) = output_player.lock()
+            if let Ok(file) = file.reopen()
+                && let Ok(source) = Decoder::new_wav(BufReader::new(file))
             {
                 let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
                 output_player.sink.append(source);
+            } else {
+                println!("Could not!")
             }
         }
     });

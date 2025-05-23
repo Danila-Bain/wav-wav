@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub struct BitIterator<I: Iterator<Item = u8>> {
     pub iter: I,
     pub bits: u8, // > 0
