@@ -10,6 +10,14 @@ export component TopLine inherits Rectangle {
     callback minimize <=> minimize-button-touch.clicked;
     callback window <=> window-button-touch.clicked;
 
+    callback move(length, length);
+
+    TouchArea {
+        moved => {
+            root.move(self.mouse-x - self.pressed-x, self.mouse-y - self.pressed-y);
+        }
+    }
+
     HorizontalLayout {
         alignment: space-between;
         padding: 3px;
@@ -24,7 +32,7 @@ export component TopLine inherits Rectangle {
 
             Text {
                 text: "Wav-wav!";
-                font-size: button-size*90%;
+                font-size: button-size * 90%;
                 font-family: "IrishGrover";
             }
         }

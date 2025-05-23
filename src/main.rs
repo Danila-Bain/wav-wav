@@ -1,5 +1,8 @@
+#![windows_subsystem = "windows"]
+
 use rfd::FileDialog;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source, decoder::LoopedDecoder};
+use slint::ComponentHandle;
 use std::error::Error;
 use std::fs::File;
 use std::sync::{Arc, Mutex};
@@ -36,6 +39,16 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let input_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
     let output_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
+
+    let weak_ui = ui.as_weak();
+    ui.on_move(move |dx, dy| {
+        let ui = weak_ui.unwrap();
+        let mut pos = ui.window().position().to_logical(ui.window().scale_factor());
+        println!("(dx,dy): ({dx},{dy})");
+        pos.x += dx;
+        pos.y += dy;
+        ui.window().set_position(pos);
+    });
 
     ui.on_choose_audio_file({
         let input_player = Arc::clone(&input_player);

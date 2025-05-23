@@ -10,6 +10,7 @@ import { Settings } from "settings.slint";
 import { TopLine } from "top-line.slint";
 
 export component AppWindow inherits Window {
+  no-frame: true;
     default-font-family: "Neucha";
     // default-font-family: "RubikMoonrocks";
     default-font-size: 24px;
@@ -34,6 +35,8 @@ export component AppWindow inherits Window {
     callback minimize <=> top-line.minimize;
     callback window <=> top-line.window;
     callback close <=> top-line.close;
+
+    callback move <=> top-line.move;
 
     max-width: 1440px;
     max-height: 1024px;
