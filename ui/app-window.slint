@@ -18,11 +18,12 @@ export component AppWindow inherits Window {
     callback input_play_toggle <=> input_player.play_button_clicked;
     callback input_seek <=> input_player.seek_audio;
     in-out property <float> input_playback_position: 0.0;
+    in-out property <float> output_playback_position: 0.0;
 
     in-out property <string> message-text <=> text-input.text;
 
     callback decode(int) -> string;
-    // callback encode <=> encode-settings.button-clicked;
+    callback encode(int, string);
 
     callback minimize <=> top-line.minimize;
     callback window <=> top-line.window;
@@ -91,10 +92,16 @@ export component AppWindow inherits Window {
             encode-settings := Settings {
                 check-box-text: "повторы";
                 button-text: "шифр";
+
+                button-clicked => {
+                    root.encode(self.bits, message-text);
+                }
             }
 
-            Player {
+            output-player := Player {
+              file-button-text: "Сохранить файл";
                 filename: "filename.wav";
+                position <=> root.output_playback_position;
             }
         }
     }
