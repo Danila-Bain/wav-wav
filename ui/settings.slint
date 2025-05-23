@@ -8,6 +8,7 @@ export component Settings inherits Rectangle {
     callback button-clicked <=> button.clicked;
     in property <string> check-box-text: "Повторения";
     in property <string> button-text: "Запустить";
+    out property bits <=> bit-selector.value;
 
     HorizontalLayout {
         padding: 0px;

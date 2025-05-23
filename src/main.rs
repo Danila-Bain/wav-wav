@@ -9,6 +9,9 @@ use std::{process, thread};
 
 slint::include_modules!();
 
+mod bit_iterator;
+use bit_iterator::*;
+
 pub fn main() -> Result<(), Box<dyn Error>> {
     let ui = AppWindow::new()?;
 
@@ -20,25 +23,33 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let sink = Sink::try_new(&stream_handle).expect("Failed to create sink");
     let sink = Arc::new(Mutex::new(sink));
 
+    let input_audio = Arc::new(Mutex::new(Vec::<i16>::new()));
+
     // let source : Option<Deconder> = None;
     // Decoder::new(BufReader::new(file)).expect("Failed to decode file");
 
     ui.on_choose_audio_file({
         let sink = Arc::clone(&sink);
+        let input_audio = Arc::clone(&input_audio);
         move || -> (f32, slint::SharedString) {
             if let Some(path) = FileDialog::new().pick_file()
                 && let Ok(file) = File::open(&path)
+                && let Ok(mut wav_reader) = hound::WavReader::open(&path)
                 && let Ok(source) = Decoder::new(BufReader::new(file))
                 && let Ok(sink) = sink.lock()
+                && let Ok(mut input_audio) = input_audio.lock()
                 && let Some(filename) = path.file_name()
             {
                 let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
                 sink.append(source);
-                return (duration, filename.to_str().unwrap_or("<Filename Error>").into());
+                *input_audio = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
+                return (
+                    duration,
+                    filename.to_str().unwrap_or("<Filename Error>").into(),
+                );
             } else {
                 return (0., "".into());
             };
-
         }
     });
 
@@ -73,7 +84,43 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    ui.on_decode(move || -> slint::SharedString { "Secret message revealed".into() });
+    ui.on_decode({
+        let input_audio = Arc::clone(&input_audio);
+        move |bits: i32| -> slint::SharedString {
+            let Ok(input_audio) = input_audio.lock() else {
+                return String::default().into();
+            };
+
+            let bits = bits as u8;
+
+            let mut message_bytes = Vec::<u8>::new();
+
+            let mut bit_iterator = BitIterator {
+                bits,
+                iter: input_audio.iter().map(|i| *i as u8),
+                curr_bit: bits,
+                curr_item: 0,
+            };
+
+            'outer: loop {
+                let mut new_byte = 0;
+                for i in 0..8 {
+                    match bit_iterator.next() {
+                        None => break 'outer,
+                        Some(true) => new_byte |= 1 << i,
+                        Some(false) => (),
+                    }
+                }
+                message_bytes.push(new_byte);
+            }
+
+            println!("{}", message_bytes.len());
+
+            message_bytes.truncate(100);
+
+            String::from_utf8_lossy(&message_bytes).into_owned().into()
+        }
+    });
 
     ui.on_close(move || {
         process::exit(0);

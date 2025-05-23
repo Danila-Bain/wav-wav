@@ -1,4 +1,4 @@
-import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, Slider, HorizontalBox } from "std-widgets.slint";
+import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, ScrollView, Slider, HorizontalBox } from "std-widgets.slint";
 
 import "./res/fonts/Neucha-Regular.ttf";
 import "./res/fonts/RubikMoonrocks-Regular.ttf";
@@ -21,7 +21,7 @@ export component AppWindow inherits Window {
 
     in-out property <string> message-text <=> text-input.text;
 
-    callback decode() -> string;
+    callback decode(int) -> string;
     // callback encode <=> encode-settings.button-clicked;
 
     callback minimize <=> top-line.minimize;
@@ -64,24 +64,28 @@ export component AppWindow inherits Window {
                 check-box-text: "повторы";
                 button-text: "де-шифр";
                 button-clicked => {
-                    message-text = root.decode();
+                    message-text = root.decode(self.bits);
                 }
             }
 
-            Rectangle {
-                background: black.transparentize(30%);
-                border-radius: 8px;
+            ScrollView {
+                // height: 200px;
+                Rectangle {
+                    background: black.transparentize(30%);
+                    border-radius: 8px;
                 // TouchArea {
                 text-input := TextInput {
-                    font-family: "Neucha";
-                    width: 95%;
-                    height: 95%;
-                    color: white;
-                    text: "Тут будет сообщение";
-                    wrap: TextWrap.word-wrap;
-                }
+                        font-family: "Neucha";
+                        width: 95%;
+                        height: 95%;
+                        color: white;
+                        text: "Тут будет сообщение";
+                        single-line: false;
+                        wrap: TextWrap.word-wrap;
+                    }
                 // }
 
+            }
             }
 
             encode-settings := Settings {
