@@ -14,8 +14,8 @@ export component AppWindow inherits Window {
     // default-font-family: "RubikMoonrocks";
     default-font-size: 24px;
 
-    callback choose_audio_file <=> input_player.choose_file_button_clicked;
-    callback save_audio_file <=> output_player.choose_file_button_clicked;
+    callback choose_audio_file() -> {filename: string, duration: float};
+    callback save_audio_file() -> string;
 
     callback input_play_toggle <=> input_player.play_button_clicked;
     callback output_play_toggle <=> output_player.play_button_clicked;
@@ -65,6 +65,15 @@ export component AppWindow inherits Window {
             input_player := Player {
                 filename: "filename.wav";
                 position <=> root.input_playback_position;
+
+                
+                out property <{filename: string, duration: float}> new;
+                file_button_clicked => {
+                    new = root.choose_audio_file();
+                    self.filename = new.filename == "" ? self.filename : new.filename;
+                    self.duration = new.filename == "" ? self.duration : new.duration + 0.001; // avoid division by zero
+                    self.playing = self.playing ? self.play_button_clicked() : self.playing;
+                }
             }
 
             decode-settings := Settings {
@@ -77,18 +86,18 @@ export component AppWindow inherits Window {
 
                 // height: 200px;
                 Rectangle {
-                    background: black.transparentize(30%);
-                    border-radius: 8px;
+                background: black.transparentize(30%);
+                border-radius: 8px;
                 // TouchArea {
                 text-input := TextInput {
-                        font-family: "Neucha";
-                        width: 95%;
-                        height: 95%;
-                        color: white;
-                        text: "Тут будет сообщение";
-                        single-line: false;
-                        wrap: TextWrap.word-wrap;
-                    }
+                    font-family: "Neucha";
+                    width: 95%;
+                    height: 95%;
+                    color: white;
+                    text: "Тут будет сообщение";
+                    single-line: false;
+                    wrap: TextWrap.word-wrap;
+                }
                 // }
 
             }
@@ -105,9 +114,16 @@ export component AppWindow inherits Window {
             }
 
             output-player := Player {
-              file-button-text: "Сохранить файл";
+                file-button-text: "Сохранить файл";
                 filename: "filename.wav";
                 position <=> root.output_playback_position;
+
+                out property <string> new-filename;
+                file_button_clicked => {
+                    self.playing = self.playing ? self.play_button_clicked() : self.playing;
+                    new-filename = root.save_audio_file();
+                    self.filename = new-filename == "" ? self.filename : new-filename;
+                }
             }
         }
     }

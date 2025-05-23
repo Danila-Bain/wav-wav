@@ -16,10 +16,11 @@ export component Player inherits Rectangle {
     // callback play_button_clicked <=> play_button.clicked;
     callback play_button_clicked() -> bool;
     // callback choose_file_button_clicked <=> choose_file_button.clicked;
-    callback choose_file_button_clicked() -> {filename: string, duration: float};
+
+    callback file_button_clicked <=> file_button.clicked;
     callback seek_audio(float);
 
-    in property <string> file-button-text <=> choose_file_button.text;
+    in property <string> file-button-text <=> file_button.text;
 
     background: black.transparentize(30%);
     border-radius: 10pt;
@@ -78,21 +79,12 @@ export component Player inherits Rectangle {
                 vertical-alignment: TextVerticalAlignment.center;
             }
 
-            choose_file_button := MyButton {
+            file_button := MyButton {
                 width: 33%;
                 text: "Выбрать файл";
                 text-color: black;
                 font-family: "RubikMoonrocks";
                 background: self.pressed ? gray : white;
-                out property <{filename: string, duration: float}> new;
-
-                clicked => {
-                    new = root.choose_file_button_clicked();
-                    filename = new.filename == "" ? filename : new.filename;
-                    duration = new.filename == "" ? duration : new.duration + 0.001; // avoid division by zero
-
-                    root.playing = root.playing ? root.play_button_clicked() : root.playing;
-                }
             }
         }
 

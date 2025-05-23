@@ -64,7 +64,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     ui.on_save_audio_file({
         let output_player = Arc::clone(&output_player);
-        move || -> (f32, slint::SharedString) {
+        move || -> slint::SharedString {
             if let Some(path) = FileDialog::new().save_file()
                 && let Ok(file) = File::create(&path)
                 && let Ok(mut wav_writer) = hound::WavWriter::new(
@@ -84,12 +84,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 }
                 wav_writer.finalize().unwrap();
 
-                return (
-                    10.,
-                    filename.to_str().unwrap_or("<Filename Error>").into(),
-                );
+                return filename.to_str().unwrap_or("< Filename Error >").into();
             } else {
-                return (0., "< Error saving file >".into());
+                return "< Error saving file >".into();
             };
         }
     });
