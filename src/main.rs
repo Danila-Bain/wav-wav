@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 
 use rfd::FileDialog;
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source, decoder::LoopedDecoder};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use slint::ComponentHandle;
 use std::error::Error;
 use std::fs::File;
@@ -44,7 +44,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ui.on_move(move |dx, dy| {
         let ui = weak_ui.unwrap();
         let mut pos = ui.window().position().to_logical(ui.window().scale_factor());
-        println!("(dx,dy): ({dx},{dy})");
         pos.x += dx;
         pos.y += dy;
         ui.window().set_position(pos);
