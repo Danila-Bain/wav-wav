@@ -5,10 +5,10 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use slint::ComponentHandle;
 use std::error::Error;
 use std::fs::File;
+use std::io::BufReader;
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::Duration;
-use std::{io::BufReader, path::PathBuf};
-use std::{process, thread};
 
 slint::include_modules!();
 
@@ -39,15 +39,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     let input_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
     let output_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
-
-    let weak_ui = ui.as_weak();
-    ui.on_move(move |dx, dy| {
-        let ui = weak_ui.unwrap();
-        let mut pos = ui.window().position().to_logical(ui.window().scale_factor());
-        pos.x += dx;
-        pos.y += dy;
-        ui.window().set_position(pos);
-    });
 
     ui.on_choose_audio_file({
         let input_player = Arc::clone(&input_player);
@@ -264,32 +255,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             if let Ok(file) = file.reopen()
                 && let Ok(source) = Decoder::new_wav(BufReader::new(file))
             {
-                let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
                 output_player.sink.append(source);
             }
-        }
-    });
-
-    ui.on_close(move || {
-        process::exit(0);
-    });
-
-    ui.on_window({
-        // doesn't work in hyprland
-        let weak_ui = ui.as_weak();
-        move || {
-            let _ = weak_ui.upgrade_in_event_loop(move |ui| {
-                let is_maximized = ui.window().is_maximized();
-                ui.window().set_maximized(!is_maximized);
-            });
-        }
-    });
-
-    ui.on_minimize({
-        // doesn't work in hyprland
-        let weak_ui = ui.as_weak();
-        move || {
-            let _ = weak_ui.upgrade_in_event_loop(move |ui| ui.window().set_minimized(true));
         }
     });
 

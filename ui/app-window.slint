@@ -7,7 +7,6 @@ import "./res/fonts/IrishGrover-Regular.ttf";
 import { MyButton } from "./my-button.slint";
 import { Player } from "player.slint";
 import { Settings } from "settings.slint";
-import { TopLine } from "top-line.slint";
 
 export component AppWindow inherits Window {
     // no-frame: true;
@@ -15,7 +14,8 @@ export component AppWindow inherits Window {
     // default-font-family: "RubikMoonrocks";
     default-font-size: 24px;
 
-    title: "🐶 Wav-wav!";
+    title: "Wav-wav!";
+    icon: @image-url("res/icons/dog.png");
 
     callback choose_audio_file() -> {filename: string, duration: float};
     callback save_audio_file() -> string;
@@ -34,12 +34,6 @@ export component AppWindow inherits Window {
     callback decode(int) -> string;
     callback encode(int, string);
 
-    callback minimize <=> top-line.minimize;
-    callback window <=> top-line.window;
-    callback close <=> top-line.close;
-
-    callback move <=> top-line.move;
-
     // max-width: 1440px;
     // max-height: 1024px;
     min-width: 720px;
@@ -55,85 +49,74 @@ export component AppWindow inherits Window {
     // callback request-increase-value();
 
 
-    VerticalLayout {
-        padding: 0px;
+        VerticalLayout {
+        padding: 10px;
         spacing: 10px;
+        input_player := Player {
+            filename: "< No File >";
+            position <=> root.input_playback_position;
 
-        top-line := TopLine {
-            x: 0;
-            width: parent.width;
+            out property <{filename: string, duration: float}> new;
+            file_button_clicked => {
+                new = root.choose_audio_file();
+                self.filename = new.filename == "" ? self.filename : new.filename;
+                self.duration = new.filename == "" ? self.duration : new.duration + 0.001; // avoid division by zero
+                    self.playing = self.playing ? self.play_button_clicked() : self.playing;
+            }
         }
 
-        VerticalLayout {
-            padding: 10px;
-            spacing: 10px;
-            input_player := Player {
-                filename: "< No File >";
-                position <=> root.input_playback_position;
-
-                out property <{filename: string, duration: float}> new;
-                file_button_clicked => {
-                    new = root.choose_audio_file();
-                    self.filename = new.filename == "" ? self.filename : new.filename;
-                    self.duration = new.filename == "" ? self.duration : new.duration + 0.001; // avoid division by zero
-                    self.playing = self.playing ? self.play_button_clicked() : self.playing;
-                }
+        decode-settings := Settings {
+            check-box-text: "повторы";
+            button-text: "де-шифр";
+            button-clicked => {
+                message-text = root.decode(self.bits);
             }
+        }
 
-            decode-settings := Settings {
-                check-box-text: "повторы";
-                button-text: "де-шифр";
-                button-clicked => {
-                    message-text = root.decode(self.bits);
-                }
-            }
-
-            Rectangle {
-                background: black.transparentize(30%);
-                border-radius: 8px;
-                Text {
-                   x: 5px;
-                   y: 5px;
-                    color: white.transparentize(50%);
-                    text: text-input.text == "" ? "Сообщение после дешифровки или для шифрования" : "";
+        Rectangle {
+            background: black.transparentize(30%);
+            border-radius: 8px;
+            Text {
+                x: 5px;
+                y: 5px;
+                color: white.transparentize(50%);
+                text: text-input.text == "" ? "Сообщение после дешифровки или для шифрования" : "";
                     // vertical-alignment: TextVerticalAlignment.top;
                     // horizontal-alignment: TextHorizontalAlignment.left;
                 }
 
-                text-input := TextInput {
-                    font-family: "Neucha";
-                    width: parent.width - 10px;
-                    height: parent.height - 10px;
-                    color: white;
-                    text: "";
-                    single-line: false;
-                    wrap: TextWrap.word-wrap;
-                }
-
+            text-input := TextInput {
+                font-family: "Neucha";
+                width: parent.width - 10px;
+                height: parent.height - 10px;
+                color: white;
+                text: "";
+                single-line: false;
+                wrap: TextWrap.word-wrap;
             }
+        }
 
-            encode-settings := Settings {
-                check-box-text: "повторы";
-                button-text: "шифр";
+        encode-settings := Settings {
+            check-box-text: "повторы";
+            button-text: "шифр";
 
-                button-clicked => {
-                    root.encode(self.bits, message-text);
-                    output-player.filename = "< Unsaved audio >";
-                    output-player.duration = input-player.duration;
-                }
+            button-clicked => {
+                root.encode(self.bits, message-text);
+                output-player.filename = "< Unsaved audio >";
+                output-player.duration = input-player.duration;
             }
+        }
 
-            output-player := Player {
-                file-button-text: "Сохранить файл";
-                filename: "< No File >";
-                position <=> root.output_playback_position;
+        output-player := Player {
+            file-button-text: "Сохранить файл";
+            filename: "< No File >";
+            position <=> root.output_playback_position;
 
-                out property <string> new-filename;
-                file_button_clicked => {
-                    self.playing = self.playing ? self.play_button_clicked() : self.playing;
-                    new-filename = root.save_audio_file();
-                    self.filename = new-filename == "" ? self.filename : new-filename;
-                }
+            out property <string> new-filename;
+            file_button_clicked => {
+                self.playing = self.playing ? self.play_button_clicked() : self.playing;
+                new-filename = root.save_audio_file();
+                self.filename = new-filename == "" ? self.filename : new-filename;
             }
         }
     }
