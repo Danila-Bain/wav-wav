@@ -1,5 +1,6 @@
 #![windows_subsystem = "windows"]
 
+use prefix_function::prefix_function;
 use rfd::FileDialog;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use slint::ComponentHandle;
@@ -14,7 +15,7 @@ use std::time::Duration;
 slint::include_modules!();
 
 mod bit_iterator;
-use bit_iterator::*;
+mod prefix_function;
 
 struct Player {
     sink: Sink,
@@ -91,8 +92,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ui.on_save_audio_file({
         let output_player = Arc::clone(&output_player);
         move || -> slint::SharedString {
-            if 
-                let Ok(output_player) = output_player.lock()
+            if let Ok(output_player) = output_player.lock()
                 && !output_player.data.is_empty()
                 && let Some(path) = FileDialog::new().save_file()
                 && let Ok(file) = File::create(&path)
@@ -202,7 +202,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         let output_player = Arc::clone(&output_player);
         move |new_pos: f32| {
             if let Ok(mut output_player) = output_player.lock() {
-
                 if output_player.sink.empty()
                     && let Some(path) = output_player.path.clone()
                 {
@@ -218,7 +217,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     ui.on_decode({
         let input_player = Arc::clone(&input_player);
-        move |bits: i32| -> slint::SharedString {
+        move |repeating: bool, bits: i32| -> slint::SharedString {
             let Ok(input_player) = input_player.lock() else {
                 return String::default().into();
             };
@@ -227,7 +226,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
             let mut message_bytes = Vec::<u8>::new();
 
-            let mut bit_iterator = BitIterator {
+            let mut bit_iterator = bit_iterator::BitIterator {
                 bits,
                 iter: input_player.data.iter().map(|i| *i as u8),
                 curr_bit: bits,
@@ -246,9 +245,24 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 message_bytes.push(new_byte);
             }
 
-            message_bytes.truncate(10000);
+            let mut s: String = String::from_utf8_lossy(&message_bytes).to_owned().into();
 
-            String::from_utf8_lossy(&message_bytes).into_owned().into()
+            // tuncate on invalid character
+            for (i, ch) in s.chars().enumerate() {
+                if ch == std::char::REPLACEMENT_CHARACTER 
+                    // || (ch as u32) < 32 
+                {
+                    s = s.chars().take(i).collect();
+                    break;
+                }
+            }
+
+            if repeating {
+                let period = prefix_function::period(&s);
+                s = s.chars().take(period).collect();
+            }
+
+            s.into()
         }
     });
 
@@ -256,7 +270,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         let input_player = Arc::clone(&input_player);
         let output_player = Arc::clone(&output_player);
 
-        move |bits: i32, message: slint::SharedString| {
+        move |repeating: bool, bits: i32, message: slint::SharedString| {
             let Ok(input_player) = input_player.lock() else {
                 return;
             };
@@ -266,14 +280,17 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
             output_player.data = input_player.data.clone(); // actually we want to modify output
             //
-            let bit_iterator = BitIterator {
+            let bit_iterator = bit_iterator::BitIterator {
                 bits: 8,
                 iter: message.as_bytes().iter().copied(),
                 curr_bit: 8,
                 curr_item: 0,
             };
 
-            let mut bit_iterator = bit_iterator.cycle();
+            let mut bit_iterator: Box<dyn Iterator<Item = bool>> = match repeating {
+                true => Box::new(bit_iterator.cycle()),
+                false => Box::new(bit_iterator),
+            };
 
             'outer: for sample in output_player.data.iter_mut() {
                 for i in 0..bits {

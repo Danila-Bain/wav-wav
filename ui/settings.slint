@@ -6,24 +6,24 @@ import {MyCheckBox} from "./my-checkbox.slint";
 export component Settings inherits Rectangle {
 
     callback button-clicked <=> button.clicked;
-    in property <string> check-box-text: "Повторения";
-    in property <string> button-text: "Запустить";
+    in-out property <string> check-box-text <=> check-box.text;
+    in-out property <string> button-text <=> button.text;
     out property bits <=> bit-selector.value;
+    out property repeating <=> check-box.value;
 
     HorizontalLayout {
         padding: 0px;
-        
         min-height: 15px;
 
         alignment: space-between;
 
-        check-box := Rectangle {
+        Rectangle {
             min-width: 200px;
             width: 30%;
             background: #0005;
 
-            MyCheckBox {
-                text: root.check-box-text;
+            check-box := MyCheckBox {
+                value: true;
                 background: black.transparentize(30%);
             }
         }
@@ -39,7 +39,6 @@ export component Settings inherits Rectangle {
 
         button := MyButton {
             width: 30%;
-            text: root.button-text;
             background: (self.pressed ? gray : black).transparentize(30%);
             clicked => {
                 debug("Расшифровать");

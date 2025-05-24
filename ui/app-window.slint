@@ -33,8 +33,8 @@ export component AppWindow inherits Window {
 
     in-out property <string> message-text <=> text-input.text;
 
-    callback decode(int) -> string;
-    callback encode(int, string);
+    callback decode(bool, int) -> string;
+    callback encode(bool, int, string);
 
     // max-width: 1440px;
     // max-height: 1024px;
@@ -68,10 +68,10 @@ export component AppWindow inherits Window {
         }
 
         decode-settings := Settings {
-            check-box-text: "повторы";
+            check-box-text: "скрыть повторы";
             button-text: "де-шифр";
             button-clicked => {
-                message-text = root.decode(self.bits);
+                message-text = root.decode(self.repeating, self.bits);
             }
         }
 
@@ -97,8 +97,8 @@ export component AppWindow inherits Window {
                     in-out property <float> anchor;
                     y: 0px;
                     height: parent.height;
-                    width: 10*parent.width;
-                    x: parent.width/2 - self.width/2;
+                    width: 10 * parent.width;
+                    x: parent.width / 2 - self.width / 2;
                     moved => {
                         anchor = (self.mouse-y - self.pressed-y).abs() < 4px ? (-text-input-flickable.viewport-y / flickable-diff) : anchor;
                         text-input-flickable.viewport-y = -(anchor + (self.mouse-y - self.pressed-y) / (parent.height - scroll-bar.height)).clamp(0, 1) * flickable-diff;
@@ -150,11 +150,11 @@ export component AppWindow inherits Window {
         }
 
         encode-settings := Settings {
-            check-box-text: "повторы";
+            check-box-text: "сделать повторы";
             button-text: "шифр";
 
             button-clicked => {
-                root.encode(self.bits, message-text);
+                root.encode(self.repeating, self.bits, message-text);
                 output-player.filename = "< Unsaved audio >";
                 output-player.duration = input-player.duration;
             }

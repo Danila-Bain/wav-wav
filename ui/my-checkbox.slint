@@ -3,7 +3,7 @@ import {MyButton} from "./my-button.slint";
 
 export component MyCheckBox inherits Rectangle {
 
-    in-out property <bool> checked: false;
+    in-out property <bool> value: true;
     in-out property text <=> t.text;
 
     border-radius: 8px;
@@ -15,7 +15,7 @@ export component MyCheckBox inherits Rectangle {
         MyButton {
             width: 30px;
             height: 30px;
-            text: root.checked ? "x" : " ";
+            text: root.value ? "x" : " ";
             text-color: black;
             background: touch-area.pressed ? gray : white;
 
@@ -33,7 +33,7 @@ export component MyCheckBox inherits Rectangle {
 
     touch-area:= TouchArea {
         clicked => {
-            root.checked = !root.checked;
+            root.value = !root.value;
         }
     }
 }
