@@ -41,11 +41,15 @@ impl Player {
         {
             let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
             self.sink.append(source);
+            self.sink.pause();
             self.data = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
             self.path = Some(path.clone());
             return (
                 duration,
-                filename.to_str().unwrap_or("< Filename Display Error >").into(),
+                filename
+                    .to_str()
+                    .unwrap_or("< Filename Display Error >")
+                    .into(),
             );
         } else {
             return (0., "".into());
@@ -87,7 +91,10 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ui.on_save_audio_file({
         let output_player = Arc::clone(&output_player);
         move || -> slint::SharedString {
-            if let Some(path) = FileDialog::new().save_file()
+            if 
+                let Ok(output_player) = output_player.lock()
+                && !output_player.data.is_empty()
+                && let Some(path) = FileDialog::new().save_file()
                 && let Ok(file) = File::create(&path)
                 && let Ok(mut wav_writer) = hound::WavWriter::new(
                     file,
@@ -98,7 +105,6 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                         sample_format: hound::SampleFormat::Int,
                     },
                 )
-                && let Ok(output_player) = output_player.lock()
                 && let Some(filename) = path.file_name()
             {
                 for sample in output_player.data.iter() {
@@ -116,16 +122,26 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ui.on_input_play_toggle({
         let input_player = Arc::clone(&input_player);
         move || -> bool {
-            if let Ok(input_player) = input_player.lock() {
-                let is_paused = input_player.sink.is_paused();
-                match is_paused {
-                    true => {
+            if let Ok(mut input_player) = input_player.lock() {
+                if input_player.sink.empty() {
+                    if let Some(path) = input_player.path.clone() {
+                        input_player.load(path);
                         input_player.sink.play();
                         return true;
-                    }
-                    false => {
-                        input_player.sink.pause();
+                    } else {
                         return false;
+                    }
+                } else {
+                    let is_paused = input_player.sink.is_paused();
+                    match is_paused {
+                        true => {
+                            input_player.sink.play();
+                            return true;
+                        }
+                        false => {
+                            input_player.sink.pause();
+                            return false;
+                        }
                     }
                 }
             } else {
@@ -137,16 +153,26 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ui.on_output_play_toggle({
         let output_player = Arc::clone(&output_player);
         move || -> bool {
-            if let Ok(output_player) = output_player.lock() {
-                let is_paused = output_player.sink.is_paused();
-                match is_paused {
-                    true => {
+            if let Ok(mut output_player) = output_player.lock() {
+                if output_player.sink.empty() {
+                    if let Some(path) = output_player.path.clone() {
+                        output_player.load(path);
                         output_player.sink.play();
                         return true;
-                    }
-                    false => {
-                        output_player.sink.pause();
+                    } else {
                         return false;
+                    }
+                } else {
+                    let is_paused = output_player.sink.is_paused();
+                    match is_paused {
+                        true => {
+                            output_player.sink.play();
+                            return true;
+                        }
+                        false => {
+                            output_player.sink.pause();
+                            return false;
+                        }
                     }
                 }
             } else {
@@ -158,7 +184,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ui.on_input_seek({
         let input_player = Arc::clone(&input_player);
         move |new_pos: f32| {
-            if let Ok(input_player) = input_player.lock() {
+            if let Ok(mut input_player) = input_player.lock() {
+                if input_player.sink.empty()
+                    && let Some(path) = input_player.path.clone()
+                {
+                    input_player.load(path);
+                }
+
                 input_player
                     .sink
                     .try_seek(Duration::from_secs_f32(new_pos))
@@ -169,7 +201,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     ui.on_output_seek({
         let output_player = Arc::clone(&output_player);
         move |new_pos: f32| {
-            if let Ok(output_player) = output_player.lock() {
+            if let Ok(mut output_player) = output_player.lock() {
+
+                if output_player.sink.empty()
+                    && let Some(path) = output_player.path.clone()
+                {
+                    output_player.load(path);
+                }
                 output_player
                     .sink
                     .try_seek(Duration::from_secs_f32(new_pos))
@@ -285,15 +323,21 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         let output_player = Arc::clone(&output_player);
         move || {
             loop {
-                thread::sleep(Duration::from_millis(100));
+                thread::sleep(Duration::from_millis(30));
                 let input_player = Arc::clone(&input_player);
                 let output_player = Arc::clone(&output_player);
                 let _ = weak_ui.upgrade_in_event_loop(move |ui| {
                     if let Ok(input_player) = input_player.lock() {
                         ui.set_input_playback_position(input_player.sink.get_pos().as_secs_f32());
+                        ui.set_input_is_playing(
+                            !input_player.sink.empty() && !input_player.sink.is_paused(),
+                        );
                     }
                     if let Ok(output_player) = output_player.lock() {
                         ui.set_output_playback_position(output_player.sink.get_pos().as_secs_f32());
+                        ui.set_output_is_playing(
+                            !output_player.sink.empty() && !output_player.sink.is_paused(),
+                        );
                     }
                 });
             }

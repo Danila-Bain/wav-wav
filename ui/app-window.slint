@@ -28,6 +28,8 @@ export component AppWindow inherits Window {
 
     in-out property <float> input_playback_position: 0.0;
     in-out property <float> output_playback_position: 0.0;
+    in-out property <bool> input_is_playing <=> input_player.playing;
+    in-out property <bool> output_is_playing <=> output_player.playing;
 
     in-out property <string> message-text <=> text-input.text;
 
