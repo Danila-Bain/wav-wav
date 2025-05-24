@@ -6,6 +6,7 @@ use slint::ComponentHandle;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -18,13 +19,37 @@ use bit_iterator::*;
 struct Player {
     sink: Sink,
     data: Vec<i16>,
+    path: Option<PathBuf>,
 }
 
 impl Player {
     fn new(stream_handle: &OutputStreamHandle) -> Self {
         let sink = Sink::try_new(&stream_handle).expect("Failed to create sink");
         let data = Vec::new();
-        Player { sink, data }
+        Player {
+            sink,
+            data,
+            path: None,
+        }
+    }
+
+    fn load(&mut self, path: PathBuf) -> (f32, slint::SharedString) {
+        if let Ok(file) = File::open(&path)
+            && let Ok(mut wav_reader) = hound::WavReader::open(&path)
+            && let Ok(source) = Decoder::new(BufReader::new(file))
+            && let Some(filename) = path.file_name()
+        {
+            let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
+            self.sink.append(source);
+            self.data = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
+            self.path = Some(path.clone());
+            return (
+                duration,
+                filename.to_str().unwrap_or("< Filename Display Error >").into(),
+            );
+        } else {
+            return (0., "".into());
+        };
     }
 }
 
@@ -46,19 +71,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             if let Some(path) = FileDialog::new()
                 .add_filter("wav files", &["wav"])
                 .pick_file()
-                && let Ok(file) = File::open(&path)
-                && let Ok(mut wav_reader) = hound::WavReader::open(&path)
-                && let Ok(source) = Decoder::new(BufReader::new(file))
+                // && let Ok(file) = File::open(&path)
+                // && let Ok(mut wav_reader) = hound::WavReader::open(&path)
+                // && let Ok(source) = Decoder::new(BufReader::new(file))
                 && let Ok(mut input_player) = input_player.lock()
-                && let Some(filename) = path.file_name()
+            // && let Some(filename) = path.file_name()
             {
-                let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
-                input_player.sink.append(source);
-                input_player.data = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
-                return (
-                    duration,
-                    filename.to_str().unwrap_or("<Filename Error>").into(),
-                );
+                return input_player.load(path.into());
             } else {
                 return (0., "".into());
             };
