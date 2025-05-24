@@ -79,8 +79,8 @@ export component AppWindow inherits Window {
             background: black.transparentize(30%);
             border-radius: 8px;
             Text {
-                x: 5px;
-                y: 5px;
+                x: 20px;
+                y: 20px;
                 color: white.transparentize(50%);
                 text: text-input.text == "" ? "Сообщение после дешифровки или для шифрования" : "";
                     // vertical-alignment: TextVerticalAlignment.top;
@@ -89,12 +89,13 @@ export component AppWindow inherits Window {
 
             text-input := TextInput {
                 font-family: "Neucha";
-                width: parent.width - 10px;
-                height: parent.height - 10px;
+                width: parent.width - 40px;
+                height: parent.height - 40px;
                 color: white;
                 text: "";
                 single-line: false;
-                wrap: TextWrap.word-wrap;
+                // wrap: TextWrap.word-wrap;
+                wrap: TextWrap.char-wrap;
             }
         }
 
