@@ -78,24 +78,74 @@ export component AppWindow inherits Window {
         Rectangle {
             background: black.transparentize(30%);
             border-radius: 8px;
-            Text {
-                x: 20px;
-                y: 20px;
-                color: white.transparentize(50%);
-                text: text-input.text == "" ? "Сообщение после дешифровки или для шифрования" : "";
-                    // vertical-alignment: TextVerticalAlignment.top;
-                    // horizontal-alignment: TextHorizontalAlignment.left;
+
+            in property <length> text-margin: 20px;
+
+            scroll-bar-line := Rectangle {
+                in property <length> bar-width: 5px;
+
+                x: parent.width - 2 * bar-width;
+                y: bar-width;
+                border-radius: 3px;
+                width: bar-width;
+                height: parent.height - 2 * bar-width;
+                background: flickable-ratio < 1. ? black.transparentize(50%) : transparent;
+
+                in property <float> flickable-ratio: (text-input-flickable.height / text-input-flickable.viewport-height).min(1);
+                in property <length> flickable-diff: (text-input-flickable.viewport-height - text-input-flickable.height);
+                TouchArea {
+                    in-out property <float> anchor;
+                    y: 0px;
+                    height: parent.height;
+                    width: 10*parent.width;
+                    x: parent.width/2 - self.width/2;
+                    moved => {
+                        anchor = (self.mouse-y - self.pressed-y).abs() < 4px ? (-text-input-flickable.viewport-y / flickable-diff) : anchor;
+                        text-input-flickable.viewport-y = -(anchor + (self.mouse-y - self.pressed-y) / (parent.height - scroll-bar.height)).clamp(0, 1) * flickable-diff;
+                    }
                 }
 
-            text-input := TextInput {
-                font-family: "Neucha";
-                width: parent.width - 40px;
-                height: parent.height - 40px;
-                color: white;
-                text: "";
-                single-line: false;
-                // wrap: TextWrap.word-wrap;
-                wrap: TextWrap.char-wrap;
+                scroll-bar := Rectangle {
+                    x: 0;
+                    width: parent.bar-width;
+                    border-radius: parent.border-radius;
+
+                    background: flickable-ratio < 1. ? white : transparent;
+
+                    height: parent.height * flickable-ratio;
+                    y: (parent.height - self.height) * (- text-input-flickable.viewport-y) / flickable-diff;
+                }
+            }
+
+            text-input-flickable := Flickable {
+                height: parent.height - 2 * text-margin;
+                width: parent.width - 2 * text-margin;
+                viewport-height: text-input.min-height;
+                interactive: false;
+                Text {
+                    x: 0px;
+                    y: 0px;
+                    color: white.transparentize(50%);
+                    text: text-input.text == "" ? "Сообщение после дешифровки или для шифрования" : "";
+                }
+
+                text-input := TextInput {
+                    x: 0px;
+                    y: 0px;
+                    font-family: "Neucha";
+                    height: self.min-height;
+                    width: parent.width;
+                    color: white;
+                    text: "";
+                    single-line: false;
+                    wrap: TextWrap.char-wrap;
+                    selection-foreground-color: black;
+                    selection-background-color: white;
+
+                    cursor-position-changed(p) => {
+                        text-input-flickable.viewport-y = text-input-flickable.viewport-y.clamp(-p.y, -(p.y - parent.height + 30px));
+                    }
+                }
             }
         }
 

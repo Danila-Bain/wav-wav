@@ -246,7 +246,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 message_bytes.push(new_byte);
             }
 
-            message_bytes.truncate(100);
+            message_bytes.truncate(10000);
 
             String::from_utf8_lossy(&message_bytes).into_owned().into()
         }
