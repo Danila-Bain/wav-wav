@@ -1,15 +1,14 @@
-use prefix_function::prefix_function;
 use rfd::FileDialog;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use slint::ComponentHandle;
-use tempfile::NamedTempFile;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use tempfile::NamedTempFile;
 
 slint::include_modules!();
 
@@ -58,7 +57,7 @@ impl Player {
             duration,
             filename
                 .to_str()
-                .unwrap_or("< Filename Display Error >")
+                .unwrap_or("< Не удалось отобразить название файла >")
                 .into(),
         );
     }
@@ -108,31 +107,49 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     });
 
     ui.on_save_audio_file({
+        let input_player = Arc::clone(&input_player);
         let output_player = Arc::clone(&output_player);
         move || -> slint::SharedString {
             if let Ok(output_player) = output_player.lock()
+                && let Ok(input_player) = input_player.lock()
                 && !output_player.data.is_empty()
-                && let Some(path) = FileDialog::new().save_file()
-                && let Ok(file) = File::create(&path)
-                && let Ok(mut wav_writer) = hound::WavWriter::new(
-                    file,
-                    hound::WavSpec {
-                        channels: 2,
-                        sample_rate: 48000,
-                        bits_per_sample: 16,
-                        sample_format: hound::SampleFormat::Int,
-                    },
-                )
+                && let Some(path) = FileDialog::new()
+                    .set_file_name(
+                        input_player
+                            .path
+                            .clone()
+                            .unwrap_or_default()
+                            .file_name()
+                            .to_owned()
+                            .unwrap_or_default()
+                            .to_str()
+                            .unwrap_or_default(),
+                    )
+                    .save_file()
+                    && let Ok(_) = std::fs::copy(&*tmp_file, &path)
+                // && let Ok(file) = File::create(&path)
+                // && let Ok(mut wav_writer) = hound::WavWriter::new(
+                //     file,
+                //     hound::WavSpec {
+                //         channels: 2,
+                //         sample_rate: 48000,
+                //         bits_per_sample: 16,
+                //         sample_format: hound::SampleFormat::Int,
+                //     },
+                // )
                 && let Some(filename) = path.file_name()
             {
-                for sample in output_player.data.iter() {
-                    wav_writer.write_sample(*sample).unwrap();
-                }
-                wav_writer.finalize().unwrap();
+                // for sample in output_player.data.iter() {
+                // wav_writer.write_sample(*sample).unwrap();
+                // }
+                // wav_writer.finalize().unwrap();
 
-                return filename.to_str().unwrap_or("< Filename Error >").into();
+                return filename
+                    .to_str()
+                    .unwrap_or("< Ошибка названия файла >")
+                    .into();
             } else {
-                return "< Error saving file >".into();
+                return "< Ошибка сохранения файла >".into();
             };
         }
     });
@@ -218,124 +235,155 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     ui.on_decode({
         let input_player = Arc::clone(&input_player);
-        move |repeating: bool, bits: i32| -> slint::SharedString {
-            let Ok(input_player) = input_player.lock() else {
-                return String::default().into();
-            };
+        let weak_ui = ui.as_weak();
+        move |repeating: bool, bits: i32| {
+            thread::spawn({
+                let input_player = Arc::clone(&input_player);
+                let weak_ui = weak_ui.clone();
+                move || {
+                    let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                        ui.set_message_text("< Дешифровка в процессе >".into());
+                    });
 
-            let bits = bits as u8;
+                    let mut data: Vec<i16> = Vec::new();
 
-            let mut message_bytes = Vec::<u8>::new();
+                    if let Ok(input_player) = input_player.lock() {
+                        data = input_player.data.clone();
+                    };
 
-            let mut bit_iterator = bit_iterator::BitIterator {
-                bits,
-                iter: input_player.data.iter().map(|i| *i as u8),
-                curr_bit: bits,
-                curr_item: 0,
-            };
+                    let bits = bits as u8;
 
-            'outer: loop {
-                let mut new_byte = 0;
-                for i in 0..8 {
-                    match bit_iterator.next() {
-                        None => break 'outer,
-                        Some(true) => new_byte |= 1 << i,
-                        Some(false) => (),
+                    let mut message_bytes = Vec::<u8>::new();
+
+                    let mut bit_iterator = bit_iterator::BitIterator {
+                        bits,
+                        iter: data.iter().map(|i| *i as u8),
+                        curr_bit: bits,
+                        curr_item: 0,
+                    };
+
+                    'outer: loop {
+                        let mut new_byte = 0;
+                        for i in 0..8 {
+                            match bit_iterator.next() {
+                                None => break 'outer,
+                                Some(true) => new_byte |= 1 << i,
+                                Some(false) => (),
+                            }
+                        }
+                        message_bytes.push(new_byte);
+                    }
+
+                    let mut s: String = String::from_utf8_lossy(&message_bytes).to_owned().into();
+
+                    // tuncate on invalid character
+                    for (i, ch) in s.chars().enumerate() {
+                        if ch == std::char::REPLACEMENT_CHARACTER
+                        // || (ch as u32) < 32
+                        {
+                            s = s.chars().take(i).collect();
+                            break;
+                        }
+                    }
+
+                    if repeating {
+                        let period = prefix_function::period(&s);
+                        s = s.chars().take(period).collect();
+                    }
+
+                    if s.is_empty() {
+                        let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                            ui.set_message_text("< Пусто >".into());
+                        });
+                    } else {
+                        let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                            ui.set_message_text(s.into());
+                        });
                     }
                 }
-                message_bytes.push(new_byte);
-            }
-
-            let mut s: String = String::from_utf8_lossy(&message_bytes).to_owned().into();
-
-            // tuncate on invalid character
-            for (i, ch) in s.chars().enumerate() {
-                if ch == std::char::REPLACEMENT_CHARACTER
-                // || (ch as u32) < 32
-                {
-                    s = s.chars().take(i).collect();
-                    break;
-                }
-            }
-
-            if repeating {
-                let period = prefix_function::period(&s);
-                s = s.chars().take(period).collect();
-            }
-
-            s.into()
+            });
         }
     });
 
     ui.on_encode({
+        let weak_ui = ui.as_weak();
         let input_player = Arc::clone(&input_player);
         let output_player = Arc::clone(&output_player);
-
         move |repeating: bool, bits: i32, message: slint::SharedString| {
-            let Ok(input_player) = input_player.lock() else {
-                return;
-            };
-            let Ok(mut output_player) = output_player.lock() else {
-                return;
-            };
+            thread::spawn({
+                let input_player = Arc::clone(&input_player);
+                let output_player = Arc::clone(&output_player);
+                let weak_ui = weak_ui.clone();
+                move || {
+                    let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                        ui.set_output_filename("< Шифровка в процессе >".into());
+                    });
 
-            output_player.data = input_player.data.clone(); // actually we want to modify output
-            //
-            let bit_iterator = bit_iterator::BitIterator {
-                bits: 8,
-                iter: message.as_bytes().iter().copied(),
-                curr_bit: 8,
-                curr_item: 0,
-            };
-
-            let mut bit_iterator: Box<dyn Iterator<Item = bool>> = match repeating {
-                true => Box::new(bit_iterator.cycle()),
-                false => Box::new(bit_iterator),
-            };
-
-            'outer: for sample in output_player.data.iter_mut() {
-                for i in 0..bits {
-                    let Some(bit) = bit_iterator.next() else {
-                        break 'outer;
+                    let mut data: Vec<i16> = Vec::new();
+                    if let Ok(input_player) = input_player.lock() {
+                        data = input_player.data.clone(); // actually we want to modify output
                     };
-                    if bit {
-                        *sample |= 1 << i;
-                    } else {
-                        *sample &= !(1 << i);
+
+                    let bit_iterator = bit_iterator::BitIterator {
+                        bits: 8,
+                        iter: message.as_bytes().iter().copied(),
+                        curr_bit: 8,
+                        curr_item: 0,
+                    };
+
+                    let mut bit_iterator: Box<dyn Iterator<Item = bool>> = match repeating {
+                        true => Box::new(bit_iterator.cycle()),
+                        false => Box::new(bit_iterator),
+                    };
+
+                    'outer: for sample in data.iter_mut() {
+                        for i in 0..bits {
+                            let Some(bit) = bit_iterator.next() else {
+                                break 'outer;
+                            };
+                            if bit {
+                                *sample |= 1 << i;
+                            } else {
+                                *sample &= !(1 << i);
+                            }
+                        }
                     }
+
+                    // let file = tempfile::NamedTempFile::new().expect("Failed to create a temporary file");
+
+                    let mut wav_writer = hound::WavWriter::new(
+                        tmp_file.as_file(),
+                        hound::WavSpec {
+                            channels: 2,
+                            sample_rate: 48000,
+                            bits_per_sample: 16,
+                            sample_format: hound::SampleFormat::Int,
+                        },
+                    )
+                    .expect("Failed to open temporary file for data writing.");
+
+                    for sample in data.iter() {
+                        wav_writer.write_sample(*sample).unwrap();
+                    }
+                    wav_writer.finalize().unwrap();
+
+                    // output_player.path = Some(file.path().into());
+                    //
+
+                    // println!("{path:?}");
+                    // let _ = file.close();
+
+                    if let Ok(mut output_player) = output_player.lock() {
+                        output_player.data = data;
+                        let path = tmp_file.path().into();
+                        output_player.load(path);
+                    };
+
+                    let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                        ui.set_output_filename("< Несохранённое аудио >".into());
+                    });
                 }
-            }
-
-            // let file = tempfile::NamedTempFile::new().expect("Failed to create a temporary file");
-
-            let mut wav_writer = hound::WavWriter::new(
-                tmp_file.as_file(),
-                hound::WavSpec {
-                    channels: 2,
-                    sample_rate: 48000,
-                    bits_per_sample: 16,
-                    sample_format: hound::SampleFormat::Int,
-                },
-            ).expect("Failed to open temporary file for data writing.");
-
-            for sample in output_player.data.iter() {
-                wav_writer.write_sample(*sample).unwrap();
-            }
-            wav_writer.finalize().unwrap();
-
-            // output_player.path = Some(file.path().into());
-            //
-
-            let path = tmp_file.path().into();
-            // println!("{path:?}");
-            // let _ = file.close();
-            output_player.load(path);
-
-            // if let Ok(file) = file.reopen()
-            //     && let Ok(source) = Decoder::new_wav(BufReader::new(file))
-            // {
-            //     output_player.sink.append(source);
-            // }
+            });
         }
     });
 

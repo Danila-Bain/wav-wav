@@ -31,10 +31,11 @@ export component AppWindow inherits Window {
     in-out property <float> output_playback_position: 0.0;
     in-out property <bool> input_is_playing <=> input_player.playing;
     in-out property <bool> output_is_playing <=> output_player.playing;
+    in-out property <string> output_filename <=> output-player.filename;
 
     in-out property <string> message-text <=> text-input.text;
 
-    callback decode(bool, int) -> string;
+    callback decode(bool, int);
     callback encode(bool, int, string);
 
     // max-width: 1440px;
@@ -54,7 +55,7 @@ export component AppWindow inherits Window {
         padding: 10px;
         spacing: 10px;
         input_player := Player {
-            filename: "< No File >";
+            filename: "< Пусто >";
             position <=> root.input_playback_position;
 
             out property <{filename: string, duration: float}> new;
@@ -70,7 +71,7 @@ export component AppWindow inherits Window {
             check-box-text: "скрыть повторы";
             button-text: "де-шифр";
             button-clicked => {
-                message-text = root.decode(self.repeating, self.bits);
+                root.decode(self.repeating, self.bits);
             }
         }
 
@@ -124,8 +125,12 @@ export component AppWindow inherits Window {
                 Text {
                     x: 0px;
                     y: 0px;
+                    height: parent.height;
+                    width: parent.width;
                     color: white.transparentize(50%);
-                    text: text-input.text == "" ? "Сообщение после дешифровки или для шифрования" : "";
+                    text: text-input.text == "" ? "Здесь вводится сообщение шифрования.\n\nКнопки сверху указывают параметры дешифровки:\n* Скрыть повторы : если сообщение является периодическим, эта опция указывает скрыть повторяющиеся части сообщения.\n* Кол-во бит : столько младших бит в каждом сэмпле сигнала использовать для дешифровки. Сообщение можно будет увидеть только если этот параметр совпадает с аналогичным параметром использованным при шифровании. Если при шифровании было другое число бит, или сообщения нет вовсе, результатом дешифровки будет небольшой набор случайных символов (до первого некорректного символа юникода) или пустое сообщение.\n\nКнопки снизу указывают аналогичные параметры шифрования:\n* Сделать повторы: если отмечено, то сообщение будет цикличным образом повторяться до конца файла, в противном случае сообщение будет записано один раз, оставляя хвост файла нетронутым.\n* Кол-во бит: столько младших бит каждого сэмпла сигнала будут использоваться для шифрования. Для расшифровки нужно указывать то же самое количество бит." : "";
+
+                    wrap: TextWrap.word-wrap;
                 }
 
                 text-input := TextInput {
@@ -154,14 +159,14 @@ export component AppWindow inherits Window {
 
             button-clicked => {
                 root.encode(self.repeating, self.bits, message-text);
-                output-player.filename = "< Unsaved audio >";
+                // output-player.filename = "< Unsaved audio >";
                 output-player.duration = input-player.duration;
             }
         }
 
         output-player := Player {
             file-button-text: "Сохранить файл";
-            filename: "< No File >";
+            filename: "< Пусто >";
             position <=> root.output_playback_position;
 
             out property <string> new-filename;
