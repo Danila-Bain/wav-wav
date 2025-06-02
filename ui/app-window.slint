@@ -2,6 +2,7 @@ import { Button, VerticalBox, TextEdit, SpinBox, CheckBox, ScrollView, Slider, H
 
 import "./res/fonts/Neucha-Regular.ttf";
 import "./res/fonts/RubikMoonrocks-Regular.ttf";
+import "./res/fonts/RubikGemstones-Regular.ttf";
 import "./res/fonts/IrishGrover-Regular.ttf";
 
 import { MyButton } from "./my-button.slint";
@@ -10,8 +11,8 @@ import { Settings } from "settings.slint";
 
 export component AppWindow inherits Window {
     // no-frame: true;
+    // default-font-family: "RubicGemstones";
     default-font-family: "Neucha";
-    // default-font-family: "RubikMoonrocks";
     default-font-size: 24px;
 
     title: "Wav-wav!";
@@ -47,11 +48,9 @@ export component AppWindow inherits Window {
         width: parent.width;
         height: parent.height;
     }
-    // in-out property <int> counter: 42;
-    // callback request-increase-value();
 
 
-        VerticalLayout {
+    VerticalLayout {
         padding: 10px;
         spacing: 10px;
         input_player := Player {

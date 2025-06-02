@@ -1,9 +1,8 @@
-#![windows_subsystem = "windows"]
-
 use prefix_function::prefix_function;
 use rfd::FileDialog;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use slint::ComponentHandle;
+use tempfile::NamedTempFile;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
@@ -23,6 +22,10 @@ struct Player {
     path: Option<PathBuf>,
 }
 
+lazy_static::lazy_static!(
+    static ref tmp_file: NamedTempFile = NamedTempFile::new().unwrap();
+);
+
 impl Player {
     fn new(stream_handle: &OutputStreamHandle) -> Self {
         let sink = Sink::try_new(&stream_handle).expect("Failed to create sink");
@@ -35,26 +38,41 @@ impl Player {
     }
 
     fn load(&mut self, path: PathBuf) -> (f32, slint::SharedString) {
-        if let Ok(file) = File::open(&path)
-            && let Ok(mut wav_reader) = hound::WavReader::open(&path)
-            && let Ok(source) = Decoder::new(BufReader::new(file))
-            && let Some(filename) = path.file_name()
+        let file = File::open(&path).expect("Failed to open the file for playback");
+        let mut wav_reader =
+            hound::WavReader::open(&path).expect("Failed to open the file for data");
+        let source =
+            Decoder::new(BufReader::new(file)).expect("Failed to decode the the file into wav");
+        let filename = path
+            .file_name()
+            .expect("Failed to convert the path to filename to display");
+
+        let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
+        self.sink.clear();
+        self.sink.append(source);
+        self.sink.pause();
+        let _ = self.sink.try_seek(Duration::from_secs_f32(0.));
+        self.data = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
+        self.path = Some(path.clone());
+        return (
+            duration,
+            filename
+                .to_str()
+                .unwrap_or("< Filename Display Error >")
+                .into(),
+        );
+    }
+
+    fn seek(&mut self, new_pos: f32) {
+        if self.sink.empty()
+            && let Some(path) = self.path.clone()
         {
-            let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
-            self.sink.append(source);
-            self.sink.pause();
-            self.data = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
-            self.path = Some(path.clone());
-            return (
-                duration,
-                filename
-                    .to_str()
-                    .unwrap_or("< Filename Display Error >")
-                    .into(),
-            );
-        } else {
-            return (0., "".into());
-        };
+            self.load(path);
+        }
+
+        self.sink
+            .try_seek(Duration::from_secs_f32(new_pos))
+            .expect("Seek failed");
     }
 }
 
@@ -185,16 +203,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         let input_player = Arc::clone(&input_player);
         move |new_pos: f32| {
             if let Ok(mut input_player) = input_player.lock() {
-                if input_player.sink.empty()
-                    && let Some(path) = input_player.path.clone()
-                {
-                    input_player.load(path);
-                }
-
-                input_player
-                    .sink
-                    .try_seek(Duration::from_secs_f32(new_pos))
-                    .expect("Seek failed");
+                input_player.seek(new_pos);
             }
         }
     });
@@ -202,15 +211,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         let output_player = Arc::clone(&output_player);
         move |new_pos: f32| {
             if let Ok(mut output_player) = output_player.lock() {
-                if output_player.sink.empty()
-                    && let Some(path) = output_player.path.clone()
-                {
-                    output_player.load(path);
-                }
-                output_player
-                    .sink
-                    .try_seek(Duration::from_secs_f32(new_pos))
-                    .expect("Seek failed");
+                output_player.seek(new_pos);
             }
         }
     });
@@ -249,8 +250,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
             // tuncate on invalid character
             for (i, ch) in s.chars().enumerate() {
-                if ch == std::char::REPLACEMENT_CHARACTER 
-                    // || (ch as u32) < 32 
+                if ch == std::char::REPLACEMENT_CHARACTER
+                // || (ch as u32) < 32
                 {
                     s = s.chars().take(i).collect();
                     break;
@@ -305,32 +306,36 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            let Ok(file) = tempfile::NamedTempFile::new() else {
-                return;
-            };
+            // let file = tempfile::NamedTempFile::new().expect("Failed to create a temporary file");
 
-            let Ok(mut wav_writer) = hound::WavWriter::new(
-                file.as_file(),
+            let mut wav_writer = hound::WavWriter::new(
+                tmp_file.as_file(),
                 hound::WavSpec {
                     channels: 2,
                     sample_rate: 48000,
                     bits_per_sample: 16,
                     sample_format: hound::SampleFormat::Int,
                 },
-            ) else {
-                return;
-            };
+            ).expect("Failed to open temporary file for data writing.");
 
             for sample in output_player.data.iter() {
                 wav_writer.write_sample(*sample).unwrap();
             }
             wav_writer.finalize().unwrap();
 
-            if let Ok(file) = file.reopen()
-                && let Ok(source) = Decoder::new_wav(BufReader::new(file))
-            {
-                output_player.sink.append(source);
-            }
+            // output_player.path = Some(file.path().into());
+            //
+
+            let path = tmp_file.path().into();
+            // println!("{path:?}");
+            // let _ = file.close();
+            output_player.load(path);
+
+            // if let Ok(file) = file.reopen()
+            //     && let Ok(source) = Decoder::new_wav(BufReader::new(file))
+            // {
+            //     output_player.sink.append(source);
+            // }
         }
     });
 
