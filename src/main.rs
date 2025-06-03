@@ -2,7 +2,7 @@
 
 use hound::WavSpec;
 use rfd::FileDialog;
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 use slint::ComponentHandle;
 use std::error::Error;
 use std::fs::File;
