@@ -1,5 +1,6 @@
 #![windows_subsystem = "windows"]
 
+use hound::WavSpec;
 use rfd::FileDialog;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use slint::ComponentHandle;
@@ -25,6 +26,7 @@ struct Player {
     sink: Sink,
     data: Vec<i16>,
     path: Option<PathBuf>,
+    spec: Option<WavSpec>,
 }
 
 impl Player {
@@ -35,6 +37,7 @@ impl Player {
             sink,
             data,
             path: None,
+            spec: None,
         }
     }
 
@@ -56,11 +59,13 @@ impl Player {
 
         let mut wav_reader =
             hound::WavReader::open(&path).expect("Failed to open the file for data");
+
         let filename = path
             .file_name()
             .expect("Failed to convert the path to filename to display");
 
         let duration = wav_reader.duration() as f32 / wav_reader.spec().sample_rate as f32;
+        self.spec = Some(wav_reader.spec());
         self.data = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
 
         let width = 2000;
@@ -77,7 +82,7 @@ impl Player {
 
             for (xi, chunk) in self
                 .data
-                .chunks(self.data.len() / width)
+                .chunks((self.data.len() / width).max(1))
                 .enumerate()
                 .take(width)
             {
@@ -113,9 +118,13 @@ impl Player {
             self.reload();
         }
 
-        self.sink
+        if self
+            .sink
             .try_seek(Duration::from_secs_f32(new_pos))
-            .expect("Seek failed");
+            .is_err()
+        {
+            println!("Seek failed");
+        };
     }
 }
 
@@ -126,7 +135,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let physical_size = logical_size.to_physical(ui.window().scale_factor());
     ui.window().set_size(physical_size); // don't wait for "Set Size" to be clicked; set the size now!
 
-    let (_stream, stream_handle) = OutputStream::try_default().expect("Failed to open an output audio stream");
+    let (_stream, stream_handle) =
+        OutputStream::try_default().expect("Failed to open an output audio stream");
 
     let input_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
     let output_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
@@ -340,14 +350,18 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 let output_player = Arc::clone(&output_player);
                 let weak_ui = weak_ui.clone();
                 move || {
+                    if input_player.lock().unwrap().data.is_empty() {
+                        return;
+                    }
+                    if input_player.lock().unwrap().spec.is_none() {
+                        return;
+                    }
+
                     let _ = weak_ui.upgrade_in_event_loop(move |ui| {
                         ui.set_output_filename("< Шифровка в процессе >".into());
                     });
 
-                    let mut data: Vec<i16> = Vec::new();
-                    if let Ok(input_player) = input_player.lock() {
-                        data = input_player.data.clone(); // actually we want to modify output
-                    };
+                    let mut data: Vec<i16> = input_player.lock().unwrap().data.clone();
 
                     let bit_iterator = bit_iterator::BitIterator {
                         bits: 8,
@@ -374,32 +388,27 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
 
-                    // let file = tempfile::NamedTempFile::new().expect("Failed to create a temporary file");
+                    let spec = input_player.lock().unwrap().spec.unwrap();
 
-                    let mut wav_writer = hound::WavWriter::create(
-                        &*tmp_file,
-                        hound::WavSpec {
-                            channels: 2,
-                            sample_rate: 48000,
-                            bits_per_sample: 16,
-                            sample_format: hound::SampleFormat::Int,
-                        },
-                    )
-                    .expect("Failed to open temporary file for data writing.");
+                    let mut wav_writer = hound::WavWriter::create(&*tmp_file, spec)
+                        .expect("Failed to open temporary file for data writing.");
 
                     for sample in data.iter() {
-                        if wav_writer.write_sample(*sample).is_err() {break};
+                        if wav_writer.write_sample(*sample).is_err() {
+                            break;
+                        };
                     }
                     if wav_writer.finalize().is_ok() {
                         let _ = weak_ui.upgrade_in_event_loop(move |ui| {
                             if let Ok(mut output_player) = output_player.lock() {
-                                let (duration, _, image) = output_player.load(tmp_file.path().into());
+                                let (duration, _, image) =
+                                    output_player.load(tmp_file.path().into());
                                 ui.set_output_waveform(image);
                                 ui.set_output_duration(duration);
                                 ui.set_output_filename("< Несохранённое аудио >".into());
                             };
                         });
-                    } 
+                    }
                 }
             });
         }
