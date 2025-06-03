@@ -134,12 +134,13 @@ export component AppWindow inherits Window {
             text-input-flickable := Flickable {
                 height: parent.height - 2 * text-margin;
                 width: parent.width - 2 * text-margin;
-                viewport-height: text-input.min-height;
+                viewport-height: text-input.min-height.max(text-placeholder.min-height);
                 interactive: false;
-                Text {
+
+                text-placeholder := Text {
                     x: 0px;
                     y: 0px;
-                    height: parent.height;
+                    height: self.min-height;
                     width: parent.width;
                     color: white.transparentize(50%);
                     text: text-input.text == "" ? "Здесь вводится сообщение шифрования.\n\nКнопки сверху указывают параметры дешифровки:\n* Скрыть повторы : если сообщение является периодическим, эта опция указывает скрыть повторяющиеся части сообщения.\n* Кол-во бит : столько младших бит в каждом сэмпле сигнала использовать для дешифровки. Сообщение можно будет увидеть только если этот параметр совпадает с аналогичным параметром использованным при шифровании. Если при шифровании было другое число бит, или сообщения нет вовсе, результатом дешифровки будет небольшой набор случайных символов (до первого некорректного символа юникода) или пустое сообщение.\n\nКнопки снизу указывают аналогичные параметры шифрования:\n* Сделать повторы: если отмечено, то сообщение будет цикличным образом повторяться до конца файла, в противном случае сообщение будет записано один раз, оставляя хвост файла нетронутым.\n* Кол-во бит: столько младших бит каждого сэмпла сигнала будут использоваться для шифрования. Для расшифровки нужно указывать то же самое количество бит." : "";
@@ -152,7 +153,7 @@ export component AppWindow inherits Window {
                     y: 0px;
                     font-family: "Neucha";
                     font-size: 20px;
-                    height: self.min-height;
+                    height: self.min-height.max(text-placeholder.min-height);
                     width: parent.width;
                     color: white;
                     text: "";
