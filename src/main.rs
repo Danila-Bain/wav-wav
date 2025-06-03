@@ -1,9 +1,13 @@
+#![windows_subsystem = "windows"]
+
 use rfd::FileDialog;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use slint::ComponentHandle;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
+use std::io::Write;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -15,15 +19,15 @@ slint::include_modules!();
 mod bit_iterator;
 mod prefix_function;
 
+lazy_static::lazy_static!(
+    static ref tmp_file: NamedTempFile = NamedTempFile::new().unwrap();
+);
+
 struct Player {
     sink: Sink,
     data: Vec<i16>,
     path: Option<PathBuf>,
 }
-
-lazy_static::lazy_static!(
-    static ref tmp_file: NamedTempFile = NamedTempFile::new().unwrap();
-);
 
 impl Player {
     fn new(stream_handle: &OutputStreamHandle) -> Self {
@@ -36,7 +40,7 @@ impl Player {
         }
     }
 
-    fn load(&mut self, path: PathBuf) -> (f32, slint::SharedString) {
+    fn load(&mut self, path: PathBuf) -> (f32, slint::SharedString, slint::Image) {
         let file = File::open(&path).expect("Failed to open the file for playback");
         let mut wav_reader =
             hound::WavReader::open(&path).expect("Failed to open the file for data");
@@ -53,13 +57,54 @@ impl Player {
         let _ = self.sink.try_seek(Duration::from_secs_f32(0.));
         self.data = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
         self.path = Some(path.clone());
+
+        let width = 2000.;
+        let height = 100.;
+        let points = 2000;
+        let path_commands = self.generate_waveform_commands(width, height, points);
+        let svg_data = format!(
+            r#"
+                <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
+                    <path d="{path_commands}" fill="white" stroke="black" stroke-width="0"/>
+                </svg>
+            "#
+        );
+        // if let Ok(mut file) = File::create("wave.svg") {
+        //     file.write(svg_data.as_bytes()).unwrap();
+        // }
+        // let image = slint::Image::load_from_path(&Path::new("wave.svg")).unwrap();
+
+        let image = slint::Image::load_from_svg_data(svg_data.as_bytes()).unwrap();
+
+
         return (
             duration,
             filename
                 .to_str()
                 .unwrap_or("< Не удалось отобразить название файла >")
                 .into(),
+            image,
         );
+    }
+
+
+    fn generate_waveform_commands(&self, width: f32, height: f32, points: usize) -> String {
+        if self.data.is_empty() {
+            return String::from("");
+        }
+
+        let mut commands = String::new();
+        commands.push_str(&format!("M 0 {height} "));
+        let chunk_size = self.data.len() / points;
+        for (xi, chunk) in self.data.chunks(chunk_size).enumerate() {
+            let y = (chunk.iter().map(|y| y.abs()).max().unwrap() as f32) / (i16::MAX as f32);
+            let y = y.clamp(0., 1.);
+            let y = (1. - y.sqrt()) * height; // flip and scale
+            let x = (xi as f32) / (points as f32) * width;
+            commands.push_str(&format!("L {x} {y} "));
+        }
+        commands.push_str(&format!("L {width} {height} Z"));
+        commands
     }
 
     fn seek(&mut self, new_pos: f32) {
@@ -89,7 +134,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     ui.on_choose_audio_file({
         let input_player = Arc::clone(&input_player);
-        move || -> (f32, slint::SharedString) {
+        move || -> (f32, slint::SharedString, slint::Image) {
             if let Some(path) = FileDialog::new()
                 .add_filter("wav files", &["wav"])
                 .pick_file()
@@ -101,7 +146,11 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             {
                 return input_player.load(path.into());
             } else {
-                return (0., "".into());
+                return (
+                    0.,
+                    "".into(),
+                    slint::Image::load_from_svg_data(&[]).unwrap(),
+                );
             };
         }
     });
@@ -395,13 +444,17 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 let input_player = Arc::clone(&input_player);
                 let output_player = Arc::clone(&output_player);
                 let _ = weak_ui.upgrade_in_event_loop(move |ui| {
-                    if !ui.get_input_dragged() && let Ok(input_player) = input_player.lock() {
+                    if !ui.get_input_dragged()
+                        && let Ok(input_player) = input_player.lock()
+                    {
                         ui.set_input_playback_position(input_player.sink.get_pos().as_secs_f32());
                         ui.set_input_is_playing(
                             !input_player.sink.empty() && !input_player.sink.is_paused(),
                         );
                     }
-                    if !ui.get_output_dragged() && let Ok(output_player) = output_player.lock() {
+                    if !ui.get_output_dragged()
+                        && let Ok(output_player) = output_player.lock()
+                    {
                         ui.set_output_playback_position(output_player.sink.get_pos().as_secs_f32());
                         ui.set_output_is_playing(
                             !output_player.sink.empty() && !output_player.sink.is_paused(),

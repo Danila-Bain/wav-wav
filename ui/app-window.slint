@@ -15,10 +15,11 @@ export component AppWindow inherits Window {
     default-font-family: "Neucha";
     default-font-size: 24px;
 
+
     title: "Wav-wav!";
     icon: @image-url("res/icons/dog.png");
 
-    callback choose_audio_file() -> {filename: string, duration: float};
+    callback choose_audio_file() -> { duration: float, filename: string, waveform: image};
     callback save_audio_file() -> string;
 
     callback input_play_toggle <=> input_player.play_button_clicked;
@@ -38,13 +39,16 @@ export component AppWindow inherits Window {
     in-out property <bool> input_dragged <=> input_player.dragged;
     in-out property <bool> output_dragged <=> output_player.dragged;
 
+    in-out property <image> input_waveform <=> input_player.waveform;
+    in-out property <image> output_waveform <=> output_player.waveform;
+
     callback decode(bool, int);
     callback encode(bool, int, string);
 
     // max-width: 1440px;
     // max-height: 1024px;
     min-width: 720px;
-    min-height: 512px;
+    min-height: 720px;
 
     Image {
         source: @image-url("res/background.png");
@@ -60,12 +64,19 @@ export component AppWindow inherits Window {
             filename: "< Пусто >";
             position <=> root.input_playback_position;
 
-            out property <{filename: string, duration: float}> new;
+            out property <{duration: float, filename: string, waveform: image}> new;
             file_button_clicked => {
                 new = root.choose_audio_file();
-                self.filename = new.filename == "" ? self.filename : new.filename;
-                self.duration = new.filename == "" ? self.duration : new.duration + 0.001; // avoid division by zero
-                    self.playing = self.playing ? self.play_button_clicked() : self.playing;
+                if (new.filename != "") {
+                    self.filename = new.filename;
+                    self.duration = new.duration;
+                    self.waveform = new.waveform;
+                }
+                // self.duration = new.filename == "" ? self.duration : new.duration + 0.001; // avoid division by zero
+                // self.playing = self.playing ? self.play_button_clicked() : self.playing;
+                if (self.playing) {
+                    self.play_button_clicked()
+                }
             }
         }
 
@@ -80,6 +91,7 @@ export component AppWindow inherits Window {
         Rectangle {
             background: black.transparentize(30%);
             border-radius: 8px;
+            min-height: 70px;
 
             in property <length> text-margin: 20px;
 

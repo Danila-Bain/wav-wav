@@ -12,6 +12,7 @@ export component Player inherits Rectangle {
     in-out property <float> duration: 0.001; // Playback duration in seconds;
     in-out property <bool> playing: true;
     in-out property <bool> dragged: false;
+    in-out property <image> waveform: @image-url("res/waveform.png");
 
     // callback play_button_clicked <=> play_button.clicked;
     callback play_button_clicked() -> bool;
@@ -123,7 +124,7 @@ export component Player inherits Rectangle {
                 height: 40px;
                 // background: white.transparentize(70%);
 
-                Rectangle {
+                slider-ruler := Rectangle {
                     height: 5px;
                     width: 95%;
                     y: (parent.height - self.height) * 0.5;
@@ -131,10 +132,25 @@ export component Player inherits Rectangle {
                 }
 
                 Image {
-                    source: @image-url("res/waveform.png");
+                    source: root.waveform;
                     width: 95%;
+                    height: 100px;
                     y: (parent.height) * 0.5 - self.height;
+                    image-fit: ImageFit.fill;
+                    image-rendering: smooth;
                 }
+
+                // waveform := Path {
+                //     width: 95%;
+                //     height: 10px;
+                //     viewbox-height: 2.;
+                //     viewbox-width: 1000.;
+                //     y: (parent.height) * 0.5 - self.height;
+                //     commands: root.waveform-fommands;
+                //     stroke: red;
+                //     stroke-width: 1px;
+                //     fill: blue;
+                // }
 
                 // Text {
                 //     text: "@";
@@ -143,7 +159,7 @@ export component Player inherits Rectangle {
                 //     font-family: "RubicMoonrocks";
                 // }
 
-                Rectangle {
+                slider-knob := Rectangle {
                     width: self.height / 2;
                     height: 25px;
                     x: 50% * 5% * parent.width + 95% * root.position / root.duration * (parent.width) - self.width * 50%;
