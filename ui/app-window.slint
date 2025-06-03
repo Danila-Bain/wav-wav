@@ -35,6 +35,9 @@ export component AppWindow inherits Window {
 
     in-out property <string> message-text <=> text-input.text;
 
+    in-out property <bool> input_dragged <=> input_player.dragged;
+    in-out property <bool> output_dragged <=> output_player.dragged;
+
     callback decode(bool, int);
     callback encode(bool, int, string);
 
@@ -49,7 +52,6 @@ export component AppWindow inherits Window {
         width: parent.width;
         height: parent.height;
     }
-
 
     VerticalLayout {
         padding: 10px;
@@ -129,7 +131,7 @@ export component AppWindow inherits Window {
                     width: parent.width;
                     color: white.transparentize(50%);
                     text: text-input.text == "" ? "Здесь вводится сообщение шифрования.\n\nКнопки сверху указывают параметры дешифровки:\n* Скрыть повторы : если сообщение является периодическим, эта опция указывает скрыть повторяющиеся части сообщения.\n* Кол-во бит : столько младших бит в каждом сэмпле сигнала использовать для дешифровки. Сообщение можно будет увидеть только если этот параметр совпадает с аналогичным параметром использованным при шифровании. Если при шифровании было другое число бит, или сообщения нет вовсе, результатом дешифровки будет небольшой набор случайных символов (до первого некорректного символа юникода) или пустое сообщение.\n\nКнопки снизу указывают аналогичные параметры шифрования:\n* Сделать повторы: если отмечено, то сообщение будет цикличным образом повторяться до конца файла, в противном случае сообщение будет записано один раз, оставляя хвост файла нетронутым.\n* Кол-во бит: столько младших бит каждого сэмпла сигнала будут использоваться для шифрования. Для расшифровки нужно указывать то же самое количество бит." : "";
-
+                    font-size: 20px;
                     wrap: TextWrap.word-wrap;
                 }
 
@@ -137,6 +139,7 @@ export component AppWindow inherits Window {
                     x: 0px;
                     y: 0px;
                     font-family: "Neucha";
+                    font-size: 20px;
                     height: self.min-height;
                     width: parent.width;
                     color: white;

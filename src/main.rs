@@ -272,6 +272,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                             }
                         }
                         message_bytes.push(new_byte);
+                        if message_bytes.len() >= 10000 {
+                            break;
+                        }
                     }
 
                     let mut s: String = String::from_utf8_lossy(&message_bytes).to_owned().into();
@@ -351,8 +354,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
                     // let file = tempfile::NamedTempFile::new().expect("Failed to create a temporary file");
 
-                    let mut wav_writer = hound::WavWriter::new(
-                        tmp_file.as_file(),
+                    let mut wav_writer = hound::WavWriter::create(
+                        &*tmp_file,
                         hound::WavSpec {
                             channels: 2,
                             sample_rate: 48000,
@@ -364,14 +367,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
                     for sample in data.iter() {
                         wav_writer.write_sample(*sample).unwrap();
+                        // wav_writer.write_sample(0).unwrap();
                     }
                     wav_writer.finalize().unwrap();
-
-                    // output_player.path = Some(file.path().into());
-                    //
-
-                    // println!("{path:?}");
-                    // let _ = file.close();
 
                     if let Ok(mut output_player) = output_player.lock() {
                         output_player.data = data;
@@ -397,13 +395,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 let input_player = Arc::clone(&input_player);
                 let output_player = Arc::clone(&output_player);
                 let _ = weak_ui.upgrade_in_event_loop(move |ui| {
-                    if let Ok(input_player) = input_player.lock() {
+                    if !ui.get_input_dragged() && let Ok(input_player) = input_player.lock() {
                         ui.set_input_playback_position(input_player.sink.get_pos().as_secs_f32());
                         ui.set_input_is_playing(
                             !input_player.sink.empty() && !input_player.sink.is_paused(),
                         );
                     }
-                    if let Ok(output_player) = output_player.lock() {
+                    if !ui.get_output_dragged() && let Ok(output_player) = output_player.lock() {
                         ui.set_output_playback_position(output_player.sink.get_pos().as_secs_f32());
                         ui.set_output_is_playing(
                             !output_player.sink.empty() && !output_player.sink.is_paused(),
