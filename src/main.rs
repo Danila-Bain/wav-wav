@@ -18,7 +18,7 @@ mod bit_iterator;
 mod prefix_function;
 
 lazy_static::lazy_static!(
-    static ref tmp_file: NamedTempFile = NamedTempFile::new().unwrap();
+    static ref tmp_file: NamedTempFile = NamedTempFile::new().expect("Failed to create a temporary file");
 );
 
 struct Player {
@@ -81,7 +81,7 @@ impl Player {
                 .enumerate()
                 .take(width)
             {
-                let y = (chunk.iter().map(|y| y.abs()).max().unwrap() as f32) / (max + 1.);
+                let y = (chunk.iter().map(|y| y.abs()).max().unwrap_or(0) as f32) / (max + 1.);
                 let y = y.clamp(0., 1.);
                 let y = (1. - y.sqrt() * 0.98) * (height - 1) as f32; // flip and scale
                 let y = y as usize;
@@ -126,7 +126,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let physical_size = logical_size.to_physical(ui.window().scale_factor());
     ui.window().set_size(physical_size); // don't wait for "Set Size" to be clicked; set the size now!
 
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    let (_stream, stream_handle) = OutputStream::try_default().expect("Failed to open an output audio stream");
 
     let input_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
     let output_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
@@ -388,19 +388,18 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                     .expect("Failed to open temporary file for data writing.");
 
                     for sample in data.iter() {
-                        wav_writer.write_sample(*sample).unwrap();
-                        // wav_writer.write_sample(0).unwrap();
+                        if wav_writer.write_sample(*sample).is_err() {break};
                     }
-                    wav_writer.finalize().unwrap();
-
-                    let _ = weak_ui.upgrade_in_event_loop(move |ui| {
-                        if let Ok(mut output_player) = output_player.lock() {
-                            let (duration, _, image) = output_player.load(tmp_file.path().into());
-                            ui.set_output_waveform(image);
-                            ui.set_output_duration(duration);
-                            ui.set_output_filename("< Несохранённое аудио >".into());
-                        };
-                    });
+                    if wav_writer.finalize().is_ok() {
+                        let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                            if let Ok(mut output_player) = output_player.lock() {
+                                let (duration, _, image) = output_player.load(tmp_file.path().into());
+                                ui.set_output_waveform(image);
+                                ui.set_output_duration(duration);
+                                ui.set_output_filename("< Несохранённое аудио >".into());
+                            };
+                        });
+                    } 
                 }
             });
         }
