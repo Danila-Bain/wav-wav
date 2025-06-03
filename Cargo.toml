@@ -5,11 +5,14 @@ edition = "2024"
 build = "build.rs"
 
 [dependencies]
-hound = "3.5.1"
-lazy_static = "1.5.0"
-rfd = "0.15.3"
-rodio = "0.20.1"
+
 slint = {version= "1.10.0"}
+rfd = "0.15.3"
+
+hound = "3.5.1"
+rodio = "0.20.1"
+
+lazy_static = "1.5.0"
 tempfile = "3.20.0"
 
 [build-dependencies]
