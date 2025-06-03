@@ -11,6 +11,7 @@ export component MyButton inherits Rectangle {
 
     background: pressed ? gray : black;
     border-radius: 8px;
+    min-width: t.min-width;
 
     callback clicked <=> touch_area.clicked;
     t := Text {

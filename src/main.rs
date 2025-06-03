@@ -6,8 +6,6 @@ use slint::ComponentHandle;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
-use std::io::Write;
-use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -40,42 +38,65 @@ impl Player {
         }
     }
 
+    fn reload(&mut self) {
+        if let Some(path) = &self.path {
+            let file = File::open(&path).expect("Failed to open the file for playback");
+            let source =
+                Decoder::new(BufReader::new(file)).expect("Failed to decode the the file into wav");
+            self.sink.clear();
+            self.sink.append(source);
+            self.sink.pause();
+            let _ = self.sink.try_seek(Duration::from_secs_f32(0.));
+        }
+    }
+
     fn load(&mut self, path: PathBuf) -> (f32, slint::SharedString, slint::Image) {
-        let file = File::open(&path).expect("Failed to open the file for playback");
+        self.path = Some(path.clone());
+        self.reload();
+
         let mut wav_reader =
             hound::WavReader::open(&path).expect("Failed to open the file for data");
-        let source =
-            Decoder::new(BufReader::new(file)).expect("Failed to decode the the file into wav");
         let filename = path
             .file_name()
             .expect("Failed to convert the path to filename to display");
 
-        let duration = 0.5 * source.size_hint().0 as f32 / source.sample_rate() as f32;
-        self.sink.clear();
-        self.sink.append(source);
-        self.sink.pause();
-        let _ = self.sink.try_seek(Duration::from_secs_f32(0.));
+        let duration = wav_reader.duration() as f32 / wav_reader.spec().sample_rate as f32;
         self.data = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
-        self.path = Some(path.clone());
 
-        let width = 2000.;
-        let height = 100.;
-        let points = 2000;
-        let path_commands = self.generate_waveform_commands(width, height, points);
-        let svg_data = format!(
-            r#"
-                <svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
-                    <path d="{path_commands}" fill="white" stroke="black" stroke-width="0"/>
-                </svg>
-            "#
-        );
-        // if let Ok(mut file) = File::create("wave.svg") {
-        //     file.write(svg_data.as_bytes()).unwrap();
-        // }
-        // let image = slint::Image::load_from_path(&Path::new("wave.svg")).unwrap();
+        let width = 2000;
+        let height = 160;
 
-        let image = slint::Image::load_from_svg_data(svg_data.as_bytes()).unwrap();
+        let mut pixel_buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::new(width, height);
+        {
+            let width = width as usize;
+            let height = height as usize;
 
+            let bytes = pixel_buffer.make_mut_bytes();
+
+            let max = self.data.iter().map(|y| y.abs()).max().unwrap_or(0) as f32;
+
+            for (xi, chunk) in self
+                .data
+                .chunks(self.data.len() / width)
+                .enumerate()
+                .take(width)
+            {
+                let y = (chunk.iter().map(|y| y.abs()).max().unwrap() as f32) / (max + 1.);
+                let y = y.clamp(0., 1.);
+                let y = (1. - y.sqrt() * 0.98) * (height - 1) as f32; // flip and scale
+                let y = y as usize;
+                // for yi in (y - border_width.min(y))..y {
+                //     bytes[yi*width*4 + xi*4 + 3] = 255;
+                // }
+                for yi in y..height {
+                    for channel in 0..4 {
+                        bytes[yi * width * 4 + xi * 4 + channel] = 255;
+                    }
+                }
+            }
+        }
+
+        let image = slint::Image::from_rgba8(pixel_buffer);
 
         return (
             duration,
@@ -87,31 +108,9 @@ impl Player {
         );
     }
 
-
-    fn generate_waveform_commands(&self, width: f32, height: f32, points: usize) -> String {
-        if self.data.is_empty() {
-            return String::from("");
-        }
-
-        let mut commands = String::new();
-        commands.push_str(&format!("M 0 {height} "));
-        let chunk_size = self.data.len() / points;
-        for (xi, chunk) in self.data.chunks(chunk_size).enumerate() {
-            let y = (chunk.iter().map(|y| y.abs()).max().unwrap() as f32) / (i16::MAX as f32);
-            let y = y.clamp(0., 1.);
-            let y = (1. - y.sqrt()) * height; // flip and scale
-            let x = (xi as f32) / (points as f32) * width;
-            commands.push_str(&format!("L {x} {y} "));
-        }
-        commands.push_str(&format!("L {width} {height} Z"));
-        commands
-    }
-
     fn seek(&mut self, new_pos: f32) {
-        if self.sink.empty()
-            && let Some(path) = self.path.clone()
-        {
-            self.load(path);
+        if self.sink.empty() {
+            self.reload();
         }
 
         self.sink
@@ -133,32 +132,30 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     let output_player = Arc::new(Mutex::new(Player::new(&stream_handle)));
 
     ui.on_choose_audio_file({
+        let weak_ui = ui.as_weak();
         let input_player = Arc::clone(&input_player);
-        move || -> (f32, slint::SharedString, slint::Image) {
-            if let Some(path) = FileDialog::new()
-                .add_filter("wav files", &["wav"])
-                .pick_file()
-                // && let Ok(file) = File::open(&path)
-                // && let Ok(mut wav_reader) = hound::WavReader::open(&path)
-                // && let Ok(source) = Decoder::new(BufReader::new(file))
-                && let Ok(mut input_player) = input_player.lock()
-            // && let Some(filename) = path.file_name()
-            {
-                return input_player.load(path.into());
-            } else {
-                return (
-                    0.,
-                    "".into(),
-                    slint::Image::load_from_svg_data(&[]).unwrap(),
-                );
-            };
+        move || {
+            let input_player = Arc::clone(&input_player);
+            let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                if let Some(path) = FileDialog::new()
+                    .add_filter("wav files", &["wav"])
+                    .pick_file()
+                    && let Ok(mut input_player) = input_player.lock()
+                {
+                    let (duration, filename, image) = input_player.load(path.into());
+                    ui.set_input_filename(filename.into());
+                    ui.set_input_duration(duration);
+                    ui.set_input_waveform(image);
+                };
+            });
         }
     });
 
     ui.on_save_audio_file({
         let input_player = Arc::clone(&input_player);
         let output_player = Arc::clone(&output_player);
-        move || -> slint::SharedString {
+        let weak_ui = ui.as_weak();
+        move || {
             if let Ok(output_player) = output_player.lock()
                 && let Ok(input_player) = input_player.lock()
                 && !output_player.data.is_empty()
@@ -175,30 +172,20 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                             .unwrap_or_default(),
                     )
                     .save_file()
-                    && let Ok(_) = std::fs::copy(&*tmp_file, &path)
-                // && let Ok(file) = File::create(&path)
-                // && let Ok(mut wav_writer) = hound::WavWriter::new(
-                //     file,
-                //     hound::WavSpec {
-                //         channels: 2,
-                //         sample_rate: 48000,
-                //         bits_per_sample: 16,
-                //         sample_format: hound::SampleFormat::Int,
-                //     },
-                // )
+                && let Ok(_) = std::fs::copy(&*tmp_file, &path)
                 && let Some(filename) = path.file_name()
             {
-                // for sample in output_player.data.iter() {
-                // wav_writer.write_sample(*sample).unwrap();
-                // }
-                // wav_writer.finalize().unwrap();
-
-                return filename
+                let filename = filename
                     .to_str()
-                    .unwrap_or("< Ошибка названия файла >")
+                    .unwrap_or("< Нечитаемое название файла >")
                     .into();
+                let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                    ui.set_output_filename(filename);
+                });
             } else {
-                return "< Ошибка сохранения файла >".into();
+                let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                    ui.set_output_filename("< Ошибка сохранения файла >".into());
+                });
             };
         }
     });
@@ -208,24 +195,17 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         move || -> bool {
             if let Ok(mut input_player) = input_player.lock() {
                 if input_player.sink.empty() {
-                    if let Some(path) = input_player.path.clone() {
-                        input_player.load(path);
+                    input_player.reload();
+                }
+                let is_paused = input_player.sink.is_paused();
+                match is_paused {
+                    true => {
                         input_player.sink.play();
                         return true;
-                    } else {
-                        return false;
                     }
-                } else {
-                    let is_paused = input_player.sink.is_paused();
-                    match is_paused {
-                        true => {
-                            input_player.sink.play();
-                            return true;
-                        }
-                        false => {
-                            input_player.sink.pause();
-                            return false;
-                        }
+                    false => {
+                        input_player.sink.pause();
+                        return false;
                     }
                 }
             } else {
@@ -239,24 +219,17 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         move || -> bool {
             if let Ok(mut output_player) = output_player.lock() {
                 if output_player.sink.empty() {
-                    if let Some(path) = output_player.path.clone() {
-                        output_player.load(path);
+                    output_player.reload();
+                }
+                let is_paused = output_player.sink.is_paused();
+                match is_paused {
+                    true => {
                         output_player.sink.play();
                         return true;
-                    } else {
-                        return false;
                     }
-                } else {
-                    let is_paused = output_player.sink.is_paused();
-                    match is_paused {
-                        true => {
-                            output_player.sink.play();
-                            return true;
-                        }
-                        false => {
-                            output_player.sink.pause();
-                            return false;
-                        }
+                    false => {
+                        output_player.sink.pause();
+                        return false;
                     }
                 }
             } else {
@@ -420,14 +393,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                     }
                     wav_writer.finalize().unwrap();
 
-                    if let Ok(mut output_player) = output_player.lock() {
-                        output_player.data = data;
-                        let path = tmp_file.path().into();
-                        output_player.load(path);
-                    };
-
                     let _ = weak_ui.upgrade_in_event_loop(move |ui| {
-                        ui.set_output_filename("< Несохранённое аудио >".into());
+                        if let Ok(mut output_player) = output_player.lock() {
+                            let (duration, _, image) = output_player.load(tmp_file.path().into());
+                            ui.set_output_waveform(image);
+                            ui.set_output_duration(duration);
+                            ui.set_output_filename("< Несохранённое аудио >".into());
+                        };
                     });
                 }
             });

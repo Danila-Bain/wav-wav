@@ -12,7 +12,8 @@ export component Player inherits Rectangle {
     in-out property <float> duration: 0.001; // Playback duration in seconds;
     in-out property <bool> playing: true;
     in-out property <bool> dragged: false;
-    in-out property <image> waveform: @image-url("res/waveform.png");
+    in-out property <image> waveform: @image-url("");
+    // in-out property <image> waveform: @image-url("res/waveform.png");
 
     // callback play_button_clicked <=> play_button.clicked;
     callback play_button_clicked() -> bool;
@@ -123,22 +124,26 @@ export component Player inherits Rectangle {
                 // width: 100%;
                 height: 40px;
                 // background: white.transparentize(70%);
-
-                slider-ruler := Rectangle {
-                    height: 5px;
-                    width: 95%;
-                    y: (parent.height - self.height) * 0.5;
-                    background: white;
-                }
-
+                
                 Image {
                     source: root.waveform;
                     width: 95%;
-                    height: 100px;
-                    y: (parent.height) * 0.5 - self.height;
+                    height: 80px;
+                    // y: (parent.height) * 0.5 - self.height;
+                    y: (parent.height) * 0.5 - self.height - slider-ruler.height * 0.5 + 1px;
                     image-fit: ImageFit.fill;
                     image-rendering: smooth;
                 }
+
+                slider-ruler := Rectangle {
+                    height: 7px;
+                    width: 95%;
+                    y: (parent.height - self.height) * 0.5;
+                    background: white;
+                    // border-color: black;
+                    // border-width: 2px;
+                }
+
 
                 // waveform := Path {
                 //     width: 95%;

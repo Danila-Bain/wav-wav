@@ -19,8 +19,8 @@ export component AppWindow inherits Window {
     title: "Wav-wav!";
     icon: @image-url("res/icons/dog.png");
 
-    callback choose_audio_file() -> { duration: float, filename: string, waveform: image};
-    callback save_audio_file() -> string;
+    callback choose_audio_file();
+    callback save_audio_file();
 
     callback input_play_toggle <=> input_player.play_button_clicked;
     callback output_play_toggle <=> output_player.play_button_clicked;
@@ -32,9 +32,14 @@ export component AppWindow inherits Window {
     in-out property <float> output_playback_position: 0.0;
     in-out property <bool> input_is_playing <=> input_player.playing;
     in-out property <bool> output_is_playing <=> output_player.playing;
+    in-out property <string> input_filename <=> input-player.filename;
     in-out property <string> output_filename <=> output-player.filename;
 
     in-out property <string> message-text <=> text-input.text;
+
+
+    in-out property <float> input_duration <=> input_player.duration;
+    in-out property <float> output_duration <=> output_player.duration;
 
     in-out property <bool> input_dragged <=> input_player.dragged;
     in-out property <bool> output_dragged <=> output_player.dragged;
@@ -64,16 +69,8 @@ export component AppWindow inherits Window {
             filename: "< Пусто >";
             position <=> root.input_playback_position;
 
-            out property <{duration: float, filename: string, waveform: image}> new;
             file_button_clicked => {
-                new = root.choose_audio_file();
-                if (new.filename != "") {
-                    self.filename = new.filename;
-                    self.duration = new.duration;
-                    self.waveform = new.waveform;
-                }
-                // self.duration = new.filename == "" ? self.duration : new.duration + 0.001; // avoid division by zero
-                // self.playing = self.playing ? self.play_button_clicked() : self.playing;
+                root.choose_audio_file();
                 if (self.playing) {
                     self.play_button_clicked()
                 }
@@ -85,6 +82,7 @@ export component AppWindow inherits Window {
             button-text: "де-шифр";
             button-clicked => {
                 root.decode(self.repeating, self.bits);
+                text-input-flickable.viewport-y = 0px;
             }
         }
 
@@ -184,12 +182,9 @@ export component AppWindow inherits Window {
             file-button-text: "Сохранить файл";
             filename: "< Пусто >";
             position <=> root.output_playback_position;
-
-            out property <string> new-filename;
             file_button_clicked => {
                 self.playing = self.playing ? self.play_button_clicked() : self.playing;
-                new-filename = root.save_audio_file();
-                self.filename = new-filename == "" ? self.filename : new-filename;
+                root.save_audio_file();
             }
         }
     }

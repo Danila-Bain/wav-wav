@@ -8,11 +8,12 @@ export component MyCheckBox inherits Rectangle {
 
     border-radius: 8px;
     background: black;
+    min-width: box.min-width;
 
-    HorizontalBox {
+    box := HorizontalBox {
         alignment: center;
 
-        MyButton {
+        button := MyButton {
             width: 30px;
             height: 30px;
             text: root.value ? "x" : " ";
@@ -31,7 +32,7 @@ export component MyCheckBox inherits Rectangle {
         }
     }
 
-    touch-area:= TouchArea {
+    touch-area := TouchArea {
         clicked => {
             root.value = !root.value;
         }
