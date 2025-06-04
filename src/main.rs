@@ -41,30 +41,30 @@ impl Player {
         }
     }
 
-    fn reload(&mut self) {
-        if let Some(path) = &self.path {
-            let file = File::open(&path).expect("Failed to open the file for playback");
-            let source =
-                Decoder::new(BufReader::new(file)).expect("Failed to decode the the file into wav");
-            self.sink.clear();
-            self.sink.append(source);
-            self.sink.pause();
-            let _ = self.sink.try_seek(Duration::from_secs_f32(0.));
-        }
+    fn reload(&mut self) -> Result<(), Box<dyn Error>> {
+        let path = self.path.as_ref().ok_or("No path")?;
+        let file = File::open(&path)?;
+        let source = Decoder::new(BufReader::new(file))?;
+        self.sink.clear();
+        self.sink.append(source);
+        self.sink.pause();
+        let _ = self.sink.try_seek(Duration::from_secs_f32(0.));
+        Ok(())
     }
 
-    fn load(&mut self, path: PathBuf) -> (f32, slint::SharedString, slint::Image) {
+    fn load(
+        &mut self,
+        path: PathBuf,
+    ) -> Result<(f32, slint::SharedString, slint::Image), Box<dyn Error>> {
         self.path = Some(path.clone());
-        self.reload();
+        self.reload()?;
 
-        let mut wav_reader =
-            hound::WavReader::open(&path).expect("Failed to open the file for data");
+        let mut wav_reader = hound::WavReader::open(&path)?;
 
-        let filename = path
-            .file_name()
-            .expect("Failed to convert the path to filename to display");
+        let filename = path.file_name().ok_or("No filename in path")?;
 
         let duration = wav_reader.duration() as f32 / wav_reader.spec().sample_rate as f32;
+
         self.spec = Some(wav_reader.spec());
         self.data = wav_reader.samples::<i16>().filter_map(Result::ok).collect();
 
@@ -103,19 +103,19 @@ impl Player {
 
         let image = slint::Image::from_rgba8(pixel_buffer);
 
-        return (
+        return Ok((
             duration,
             filename
                 .to_str()
                 .unwrap_or("< Не удалось отобразить название файла >")
                 .into(),
             image,
-        );
+        ));
     }
 
     fn seek(&mut self, new_pos: f32) {
         if self.sink.empty() {
-            self.reload();
+            let _ = self.reload();
         }
 
         if self
@@ -152,10 +152,13 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                     .pick_file()
                     && let Ok(mut input_player) = input_player.lock()
                 {
-                    let (duration, filename, image) = input_player.load(path.into());
-                    ui.set_input_filename(filename.into());
-                    ui.set_input_duration(duration);
-                    ui.set_input_waveform(image);
+                    if let Ok((duration, filename, image)) = input_player.load(path.into()) {
+                        ui.set_input_filename(filename.into());
+                        ui.set_input_duration(duration);
+                        ui.set_input_waveform(image);
+                    } else {
+                        ui.set_input_filename("< Ошибка при загрузке файла >".into());
+                    }
                 };
             });
         }
@@ -205,7 +208,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         move || -> bool {
             if let Ok(mut input_player) = input_player.lock() {
                 if input_player.sink.empty() {
-                    input_player.reload();
+                    let _ = input_player.reload();
                 }
                 let is_paused = input_player.sink.is_paused();
                 match is_paused {
@@ -229,7 +232,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         move || -> bool {
             if let Ok(mut output_player) = output_player.lock() {
                 if output_player.sink.empty() {
-                    output_player.reload();
+                    let _ = output_player.reload();
                 }
                 let is_paused = output_player.sink.is_paused();
                 match is_paused {
@@ -390,8 +393,14 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
                     let spec = input_player.lock().unwrap().spec.unwrap();
 
-                    let mut wav_writer = hound::WavWriter::create(&*tmp_file, spec)
-                        .expect("Failed to open temporary file for data writing.");
+                    let Ok(mut wav_writer) = hound::WavWriter::create(&*tmp_file, spec) else {
+                        let _ = weak_ui.upgrade_in_event_loop(move |ui| {
+                            ui.set_output_filename(
+                                "< Ошибка : не получилось записать временный файл >".into(),
+                            );
+                        });
+                        return;
+                    };
 
                     for sample in data.iter() {
                         if wav_writer.write_sample(*sample).is_err() {
@@ -401,11 +410,15 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                     if wav_writer.finalize().is_ok() {
                         let _ = weak_ui.upgrade_in_event_loop(move |ui| {
                             if let Ok(mut output_player) = output_player.lock() {
-                                let (duration, _, image) =
-                                    output_player.load(tmp_file.path().into());
-                                ui.set_output_waveform(image);
-                                ui.set_output_duration(duration);
-                                ui.set_output_filename("< Несохранённое аудио >".into());
+                                if let Ok((duration, _, image)) =
+                                    output_player.load(tmp_file.path().into())
+                                {
+                                    ui.set_output_waveform(image);
+                                    ui.set_output_duration(duration);
+                                    ui.set_output_filename("< Несохранённое аудио >".into());
+                                } else {
+                                    ui.set_output_filename("< Ошибка открытия аудио >".into());
+                                }
                             };
                         });
                     }
