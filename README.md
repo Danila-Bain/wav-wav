@@ -41,8 +41,3 @@ It features:
 ## Project Name
 
 The name "wav-wav" is a play on words, referencing both the WAV audio format and the Russian onomatopoeia "вав-вав," which mimics a dog's bark. This naming underscores the concept of hiding messages in plain hearing.
-
-## License
-
-This project is licensed under the MIT License.
-
